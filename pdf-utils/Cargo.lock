@@ -50,6 +50,10 @@ checksum = "c2459377285ad874054d797f3ccebf984978aa39129f6eafde5cdc8315b612f8"
 [[package]]
 name = "core"
 version = "0.1.0"
+dependencies = [
+ "extractor",
+ "signature-validator",
+]
 
 [[package]]
 name = "cpufeatures"

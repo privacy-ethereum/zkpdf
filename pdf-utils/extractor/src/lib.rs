@@ -1,11 +1,11 @@
+pub mod parser_utils;
+pub mod types;
+
 mod cmap;
 mod encoding;
 mod font;
 mod parser;
-pub mod parser_utils;
-mod types;
 
-// #![cfg_attr(not(feature = "std"), no_std)]
 extern crate alloc;
 
 use crate::cmap::decode_bytes;
@@ -912,13 +912,13 @@ fn extract_from_tokens(
     }
 }
 
-#[cfg(test)]
+#[cfg(feature = "private_tests")]
 mod test {
     use super::extract_text;
 
     #[test]
     fn test_extract_text() {
-        let pdf_data = include_bytes!("../../samples-private/pan-cert.pdf").to_vec();
+        let pdf_data = include_bytes!("../../samples-private/bank-cert.pdf").to_vec();
 
         match extract_text(pdf_data) {
             Ok(text_per_page) => {

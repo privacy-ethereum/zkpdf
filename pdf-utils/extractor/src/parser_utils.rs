@@ -1,3 +1,5 @@
+use std::str;
+
 use crate::types::Token;
 
 pub fn fold_array_tokens(tokens: Vec<Token>) -> Vec<Token> {

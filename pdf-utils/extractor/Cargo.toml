@@ -5,3 +5,6 @@ edition = "2021"
 
 [dependencies]
 miniz_oxide = "0.7"
+
+[features]
+private_tests = []
