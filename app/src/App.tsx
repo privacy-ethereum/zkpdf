@@ -2,6 +2,7 @@ import React, { useState, type ChangeEvent } from "react";
 import * as asn1js from "asn1js";
 import { setEngine, CryptoEngine } from "pkijs";
 import { ContentInfo, SignedData, Certificate } from "pkijs";
+import { loadWasm } from "./wasm.ts";
 
 function initPKIjs() {
   if ((window as any).__PKIJS_ENGINE_INITIALIZED__) return;
@@ -31,18 +32,18 @@ function publicKeyInfoToPEM(spkiBuffer: ArrayBuffer): string {
 }
 
 export default function App() {
-  const [status, setStatus] = useState<string>("No file selected.");
+  const [status, setStatus] = useState("No file selected.");
   const [publicKeyPEM, setPublicKeyPEM] = useState<string | null>(null);
   const [signatureValid, setSignatureValid] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  const [objectIds, setObjectIds] = useState<string[]>([]);
-  const [selectedObjectId, setSelectedObjectId] = useState<string>("");
-  const [objectContents, setObjectContents] = useState<Record<string, string>>(
-    {}
+  const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
+  const [pages, setPages] = useState<string[]>([]);
+  const [selectedPage, setSelectedPage] = useState<number>(0);
+  const [selectedText, setSelectedText] = useState<string>("");
+  const [selectionStart, setSelectionStart] = useState<number>(0);
+  const [verificationResult, setVerificationResult] = useState<boolean | null>(
+    null
   );
-
-  const [fullPdfText, setFullPdfText] = useState<string>("");
 
   initPKIjs();
 
@@ -51,10 +52,12 @@ export default function App() {
     setError(null);
     setSignatureValid(null);
     setPublicKeyPEM(null);
-    setObjectIds([]);
-    setSelectedObjectId("");
-    setObjectContents({});
-    setFullPdfText("");
+    setPdfBytes(null);
+    setPages([]);
+    setSelectedPage(0);
+    setSelectedText("");
+    setSelectionStart(0);
+    setVerificationResult(null);
 
     if (!e.target.files || e.target.files.length === 0) {
       setError("No file chosen.");
@@ -65,50 +68,42 @@ export default function App() {
       const file = e.target.files[0];
       const arrayBuffer = await file.arrayBuffer();
       const uint8 = new Uint8Array(arrayBuffer);
+      setPdfBytes(uint8);
 
       setStatus("Scanning for ByteRange and Contents…");
 
       const pdfText = new TextDecoder("latin1").decode(uint8);
-      setFullPdfText(pdfText);
 
       const byteRangeMatch =
         /\/ByteRange\s*\[\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*\]/.exec(pdfText);
-      if (!byteRangeMatch) {
+      if (!byteRangeMatch)
         throw new Error("Could not locate /ByteRange in PDF.");
-      }
 
-      const start1 = parseInt(byteRangeMatch[1], 10);
-      const len1 = parseInt(byteRangeMatch[2], 10);
-      const start2 = parseInt(byteRangeMatch[3], 10);
-      const len2 = parseInt(byteRangeMatch[4], 10);
+      const [start1, len1, start2, len2] = byteRangeMatch
+        .slice(1, 5)
+        .map(Number);
 
       const contentsMatch = /\/Contents\s*<([0-9A-Fa-f\s]+)>/.exec(pdfText);
-      if (!contentsMatch) {
-        throw new Error("Could not locate /Contents in PDF.");
-      }
+      if (!contentsMatch) throw new Error("Could not locate /Contents in PDF.");
+
       const signatureHex = contentsMatch[1].replace(/\s+/g, "");
-      if (!signatureHex) {
-        throw new Error("Empty /Contents field.");
-      }
+      if (!signatureHex) throw new Error("Empty /Contents field.");
 
       setStatus("Reassembling signed data…");
 
-      const slice1 = uint8.slice(start1, start1 + len1);
-      const slice2 = uint8.slice(start2, start2 + len2);
-      const signedData = new Uint8Array(slice1.byteLength + slice2.byteLength);
-      signedData.set(slice1, 0);
-      signedData.set(slice2, slice1.byteLength);
+      const signedData = new Uint8Array(len1 + len2);
+      signedData.set(uint8.slice(start1, start1 + len1), 0);
+      signedData.set(uint8.slice(start2, start2 + len2), len1);
 
       const signatureDer = new Uint8Array(
-        signatureHex.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16))
+        signatureHex.match(/.{1,2}/g)!.map((b) => parseInt(b, 16))
       );
 
       setStatus("Parsing PKCS#7…");
 
       const asn1 = asn1js.fromBER(signatureDer.buffer);
-      if (asn1.offset === -1) {
+      if (asn1.offset === -1)
         throw new Error("ASN.1 parse error on signature DER.");
-      }
 
       const contentInfo = new ContentInfo({ schema: asn1.result });
       if (contentInfo.contentType !== "1.2.840.113549.1.7.2") {
@@ -116,47 +111,30 @@ export default function App() {
       }
 
       const signedDataPKI = new SignedData({ schema: contentInfo.content });
-      const verification = await signedDataPKI.verify({
+      const verified = await signedDataPKI.verify({
         signer: 0,
         trustedCerts: [],
         data: signedData.buffer,
       });
 
-      setSignatureValid(!!verification);
+      setSignatureValid(!!verified);
 
-      if (
-        !signedDataPKI.certificates ||
-        signedDataPKI.certificates.length === 0
-      ) {
+      if (!signedDataPKI.certificates?.length) {
         throw new Error("No certificates embedded in this SignedData.");
       }
-      const cert0 = signedDataPKI.certificates![0] as Certificate;
-      const spkiBuf = cert0.subjectPublicKeyInfo.toSchema().toBER(false);
+
+      const cert = signedDataPKI.certificates[0] as Certificate;
+      const spkiBuf = cert.subjectPublicKeyInfo.toSchema().toBER(false);
       setPublicKeyPEM(publicKeyInfoToPEM(spkiBuf));
 
-      setStatus("Signature parsed. Now extracting object IDs and contents…");
+      setStatus("Signature OK. Extracting PDF text…");
 
-      const objMatches = [...pdfText.matchAll(/(\d+)\s+\d+\s+obj/g)];
-      const ids = Array.from(new Set(objMatches.map((m) => m[1])));
-      setObjectIds(ids);
+      const wasm = await loadWasm();
+      const extracted = wasm.wasm_extract_text(uint8);
+      setPages(extracted);
+      setSelectedPage(0);
 
-      const contentsMap: Record<string, string> = {};
-      ids.forEach((id) => {
-        const re = new RegExp(`${id}\\s+\\d+\\s+obj([\\s\\S]*?)endobj`, "g");
-        const m = re.exec(pdfText);
-        if (m && m[1] !== undefined) {
-          contentsMap[id] = m[1].trim();
-        } else {
-          contentsMap[id] = "";
-        }
-      });
-      setObjectContents(contentsMap);
-
-      if (ids.length > 0) {
-        setSelectedObjectId(ids[0]);
-      }
-
-      setStatus("Done. Signature OK and objects listed below.");
+      setStatus("Done.");
     } catch (err: any) {
       console.error(err);
       setError(err.message || String(err));
@@ -164,28 +142,38 @@ export default function App() {
     }
   };
 
-  const onGenerateProof = () => {
-    if (!selectedObjectId) {
-      alert("Please pick an object ID first.");
-      return;
-    }
-    alert(`Generate proof for object #${selectedObjectId}`);
+  const onTextSelect = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
+    const target = e.target as HTMLTextAreaElement;
+    setSelectedText(
+      target.value.substring(target.selectionStart, target.selectionEnd)
+    );
+    setSelectionStart(target.selectionStart);
+  };
+
+  const onVerifySelection = async () => {
+    if (!pdfBytes) return;
+    const wasm = await loadWasm();
+    console.log(selectedPage);
+    const ok = wasm.wasm_verify_text(
+      pdfBytes,
+      selectedPage,
+      selectedText,
+      selectionStart
+    );
+    setVerificationResult(ok);
   };
 
   return (
     <div
       style={{ maxWidth: 700, margin: "2rem auto", fontFamily: "sans-serif" }}
     >
-      <h2>🖨️ PDF Signature Verifier & Inspector</h2>
+      <h2>🖨️ PDF Signature Verifier</h2>
       <p>
-        1. Select a signed PDF. This page will extract its PKCS#7 signature,
-        verify it against the embedded certificate, and then scan the PDF for
-        “object” identifiers. 2. Pick one object ID from the list to view its
-        raw PDF snippet or to generate a proof over it.
+        Select a signed PDF. This tool will verify its PKCS#7 signature and
+        allow you to select and verify text.
       </p>
 
       <input type="file" accept=".pdf" onChange={onFileChange} />
-
       <div style={{ marginTop: "1rem" }}>
         <strong>Status:</strong> {status}
       </div>
@@ -231,7 +219,7 @@ export default function App() {
         </div>
       )}
 
-      {objectIds.length > 0 && (
+      {pages.length > 0 && (
         <div
           style={{
             marginTop: "2rem",
@@ -240,64 +228,68 @@ export default function App() {
             borderRadius: 4,
           }}
         >
-          <strong>
-            Step 2: Pick an object ID to inspect or generate a proof
-          </strong>
+          <strong>Select or enter text to verify</strong>
+
           <div style={{ marginTop: "0.5rem" }}>
-            <label htmlFor="obj-select">Object IDs found in PDF:</label>
-            <br />
+            <label htmlFor="page-select">Page:</label>
             <select
-              id="obj-select"
-              value={selectedObjectId}
-              onChange={(e) => setSelectedObjectId(e.target.value)}
-              style={{
-                marginTop: "0.25rem",
-                padding: "0.25rem",
-                minWidth: "100px",
-              }}
+              id="page-select"
+              value={selectedPage}
+              onChange={(e) => setSelectedPage(parseInt(e.target.value, 10))}
+              style={{ marginLeft: "0.5rem" }}
             >
-              {objectIds.map((id) => (
-                <option key={id} value={id}>
-                  {id}
+              {pages.map((_, i) => (
+                <option key={i} value={i}>
+                  {i + 1}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Show the raw snippet for the currently selected object */}
-          <div style={{ marginTop: "1rem" }}>
-            <strong>Raw PDF snippet for object #{selectedObjectId}:</strong>
-            <pre
-              style={{
-                background: "#f5f5f5",
-                border: "1px solid #ddd",
-                padding: "0.5rem",
-                borderRadius: 4,
-                overflowX: "auto",
-                maxHeight: "200px",
-                whiteSpace: "pre-wrap",
-                wordBreak: "break-all",
-                color: "#333",
-              }}
-            >
-              {objectContents[selectedObjectId] || "(no content found)"}
-            </pre>
+          <textarea
+            style={{
+              marginTop: "0.5rem",
+              width: "100%",
+              height: "150px",
+              fontFamily: "monospace",
+            }}
+            value={pages[selectedPage]}
+            readOnly
+            onMouseUp={onTextSelect}
+          />
+
+          <div style={{ marginTop: "0.5rem", display: "flex", gap: "1rem" }}>
+            <div style={{ flex: 1 }}>
+              <label>Substring to verify:</label>
+              <input
+                type="text"
+                value={selectedText}
+                onChange={(e) => setSelectedText(e.target.value)}
+                placeholder="Enter text manually or select from above"
+                style={{ width: "100%", padding: "0.25rem" }}
+              />
+            </div>
+            <div>
+              <label>Offset:</label>
+              <input
+                type="number"
+                value={selectionStart}
+                onChange={(e) =>
+                  setSelectionStart(parseInt(e.target.value, 10))
+                }
+                style={{ width: "80px", padding: "0.25rem" }}
+              />
+            </div>
           </div>
 
-          <button
-            onClick={onGenerateProof}
-            style={{
-              marginTop: "1rem",
-              padding: "0.5rem 1rem",
-              background: "#007ACC",
-              color: "white",
-              border: "none",
-              borderRadius: 4,
-              cursor: "pointer",
-            }}
-          >
-            Generate Proof
-          </button>
+          <div style={{ marginTop: "0.75rem" }}>
+            <button onClick={onVerifySelection}>Verify Selected Text</button>
+            {verificationResult !== null && (
+              <span style={{ marginLeft: "0.5rem" }}>
+                {verificationResult ? "✅ Verified" : "❌ Not Verified"}
+              </span>
+            )}
+          </div>
         </div>
       )}
     </div>

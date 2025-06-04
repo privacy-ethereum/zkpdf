@@ -11,3 +11,4 @@ crate-type = ["cdylib"]
 core = {path = "../core"}
 wasm-bindgen = "0.2"
 getrandom = { version = "0.2", features = ["js"] }
+extractor = { path = "../extractor" }
