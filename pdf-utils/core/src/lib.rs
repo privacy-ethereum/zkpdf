@@ -48,7 +48,24 @@ pub fn verify_text(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_verify_text_public() {
+        let pdf_bytes = include_bytes!("../../sample-pdfs/digitally_signed.pdf").to_vec();
+
+        let name = "Sample Signed PDF Document";
+        let page_number = 0;
+        let offset = 0;
+        let result = verify_text(pdf_bytes, page_number, name, offset);
+
+        assert!(result.is_ok(), "Verification failed: {:?}", result);
+    }
+}
+
+#[cfg(feature = "private_tests")]
+mod core_test {
     use crate::verify_text;
 
     #[test]
