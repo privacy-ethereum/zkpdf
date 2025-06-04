@@ -361,11 +361,23 @@ pub fn parse_pdf(data: &[u8]) -> Result<(Vec<PageContent>, HashMap<(u32, u16), P
     loop {
         parser.skip_whitespace_and_comments();
         if parser.pos >= parser.len {
-            return Err(PdfError::ParseError("PDF ended before trailer"));
+            break;
         }
 
         if parser.remaining_starts_with(b"xref") || parser.remaining_starts_with(b"trailer") {
             break;
+        }
+        if parser.remaining_starts_with(b"startxref") {
+            parser.pos += 9; // len("startxref")
+            parser.skip_whitespace_and_comments();
+            if parser.pos < parser.len {
+                let _ = parser.parse_number();
+            }
+            parser.skip_whitespace_and_comments();
+            if parser.remaining_starts_with(b"%%EOF") {
+                parser.pos += 5;
+            }
+            continue;
         }
         //  "<obj_id> <gen_id> obj"
         let obj_id = match parser.parse_number()? {
@@ -383,7 +395,7 @@ pub fn parse_pdf(data: &[u8]) -> Result<(Vec<PageContent>, HashMap<(u32, u16), P
         }
         parser.pos += 3;
         parser.skip_whitespace_and_comments();
-        let obj_value = if parser.pos < parser.len
+        let mut obj_value = if parser.pos < parser.len
             && parser.data[parser.pos] == b'<'
             && parser.pos + 1 < parser.len
             && parser.data[parser.pos + 1] == b'<'
@@ -490,10 +502,29 @@ pub fn parse_pdf(data: &[u8]) -> Result<(Vec<PageContent>, HashMap<(u32, u16), P
                 } else {
                     HashMap::new()
                 };
-                PdfObj::Stream(PdfStream {
+                let mut stream_obj = PdfStream {
                     dict,
                     data: stream_data,
-                })
+                };
+
+                if let Some(PdfObj::Name(ref t)) = stream_obj.dict.get("Type") {
+                    if t == "ObjStm" {
+                        if let (Some(PdfObj::Number(first)), Some(PdfObj::Number(n))) =
+                            (stream_obj.dict.get("First"), stream_obj.dict.get("N"))
+                        {
+                            if let Ok(decompressed) = decompress_to_vec_zlib(&stream_obj.data) {
+                                parse_obj_stream(
+                                    &decompressed,
+                                    *first as usize,
+                                    *n as usize,
+                                    &mut objects,
+                                )?;
+                            }
+                        }
+                    }
+                }
+
+                PdfObj::Stream(stream_obj)
             } else {
                 // "endobj"
                 parser.skip_whitespace_and_comments();
@@ -522,30 +553,43 @@ pub fn parse_pdf(data: &[u8]) -> Result<(Vec<PageContent>, HashMap<(u32, u16), P
         trailer_index = Some(parser.pos);
     } else {
         let data_bytes = parser.data;
-        for i in (0..data_bytes.len().saturating_sub(6)).rev() {
+        for i in (0..data_bytes.len().saturating_sub(7)).rev() {
             if data_bytes[i..].starts_with(b"trailer") {
                 trailer_index = Some(i);
                 break;
             }
         }
     }
-    if trailer_index.is_none() {
-        return Err(PdfError::ParseError("Trailer dictionary not found"));
-    }
-    parser.pos = trailer_index.unwrap();
-    if parser.remaining_starts_with(b"trailer") {
-        parser.pos += 7;
-    }
-    parser.skip_whitespace_and_comments();
-    if !parser.remaining_starts_with(b"<<") {
-        return Err(PdfError::ParseError("Trailer dictionary not found"));
-    }
-    parser.pos += 2;
-    let trailer_dict_obj = parser.parse_dictionary()?;
-    let trailer_dict = if let PdfObj::Dictionary(d) = trailer_dict_obj {
-        d
+
+    let trailer_dict = if let Some(idx) = trailer_index {
+        parser.pos = idx;
+        if parser.remaining_starts_with(b"trailer") {
+            parser.pos += 7;
+        }
+        parser.skip_whitespace_and_comments();
+        if !parser.remaining_starts_with(b"<<") {
+            return Err(PdfError::ParseError("Trailer dictionary not found"));
+        }
+        parser.pos += 2;
+        let trailer_dict_obj = parser.parse_dictionary()?;
+        if let PdfObj::Dictionary(d) = trailer_dict_obj {
+            d
+        } else {
+            return Err(PdfError::ParseError("Trailer is not a dictionary"));
+        }
     } else {
-        return Err(PdfError::ParseError("Trailer is not a dictionary"));
+        let mut dict_opt = None;
+        for obj in objects.values() {
+            if let PdfObj::Stream(s) = obj {
+                if let Some(PdfObj::Name(t)) = s.dict.get("Type") {
+                    if t == "XRef" && s.dict.get("Root").is_some() {
+                        dict_opt = Some(s.dict.clone());
+                        break;
+                    }
+                }
+            }
+        }
+        dict_opt.ok_or(PdfError::ParseError("Trailer dictionary not found"))?
     };
     let root_obj = match trailer_dict.get("Root") {
         Some(PdfObj::Reference(obj_id)) => objects.get(obj_id).cloned(),
@@ -579,6 +623,40 @@ pub fn parse_pdf(data: &[u8]) -> Result<(Vec<PageContent>, HashMap<(u32, u16), P
     }
 
     Ok((result, objects))
+}
+
+fn parse_obj_stream(
+    data: &[u8],
+    first: usize,
+    count: usize,
+    objects: &mut HashMap<(u32, u16), PdfObj>,
+) -> Result<(), PdfError> {
+    let mut parser = Parser::new(data);
+    let mut headers = Vec::new();
+    for _ in 0..count {
+        let obj_num = match parser.parse_number()? {
+            PdfObj::Number(n) => n as u32,
+            _ => return Err(PdfError::ParseError("Invalid object number in ObjStm")),
+        };
+        parser.skip_whitespace_and_comments();
+        let offset = match parser.parse_number()? {
+            PdfObj::Number(n) => n as usize,
+            _ => return Err(PdfError::ParseError("Invalid object offset in ObjStm")),
+        };
+        headers.push((obj_num, offset));
+    }
+    for i in 0..count {
+        let start = first + headers[i].1;
+        let end = if i + 1 < count {
+            first + headers[i + 1].1
+        } else {
+            data.len()
+        };
+        let mut sub = Parser::new(&data[start..end]);
+        let value = sub.parse_value()?;
+        objects.insert((headers[i].0, 0), value);
+    }
+    Ok(())
 }
 
 fn parse_content_tokens(data: &[u8]) -> Vec<Token> {
@@ -920,9 +998,11 @@ mod extractor_tests {
 
         match super::extract_text(pdf_data) {
             Ok(text_per_page) => {
-                for (i, text) in text_per_page.iter().enumerate() {
-                    println!("Page {}: {}", i + 1, text);
-                }
+                assert!(!text_per_page.is_empty(), "No text extracted from PDF");
+                assert!(
+                    text_per_page[0] == "Sample Signed PDF Document",
+                    "Expected text not found in the first page"
+                );
             }
             Err(e) => panic!("Failed to extract PDF text: {:?}", e),
         }
@@ -934,8 +1014,49 @@ mod test {
     use super::extract_text;
 
     #[test]
-    fn test_extract_text() {
+    fn text_extract_bank() {
         let pdf_data = include_bytes!("../../samples-private/bank-cert.pdf").to_vec();
+
+        match extract_text(pdf_data) {
+            Ok(text_per_page) => {
+                for (i, text) in text_per_page.iter().enumerate() {
+                    println!("Page {}: {}", i + 1, text);
+                }
+            }
+            Err(e) => panic!("Failed to extract PDF text: {:?}", e),
+        }
+    }
+
+    #[test]
+    fn text_extract_pan() {
+        let pdf_data = include_bytes!("../../samples-private/pan-cert.pdf").to_vec();
+
+        match extract_text(pdf_data) {
+            Ok(text_per_page) => {
+                for (i, text) in text_per_page.iter().enumerate() {
+                    println!("Page {}: {}", i + 1, text);
+                }
+            }
+            Err(e) => panic!("Failed to extract PDF text: {:?}", e),
+        }
+    }
+    #[test]
+    fn text_extract_education() {
+        let pdf_data = include_bytes!("../../samples-private/tenth_class.pdf").to_vec();
+
+        match extract_text(pdf_data) {
+            Ok(text_per_page) => {
+                for (i, text) in text_per_page.iter().enumerate() {
+                    println!("Page {}: {}", i + 1, text);
+                }
+            }
+            Err(e) => panic!("Failed to extract PDF text: {:?}", e),
+        }
+    }
+
+    #[test]
+    fn text_extract_gst() {
+        let pdf_data = include_bytes!("../../samples-private/GST_RC.pdf").to_vec();
 
         match extract_text(pdf_data) {
             Ok(text_per_page) => {
