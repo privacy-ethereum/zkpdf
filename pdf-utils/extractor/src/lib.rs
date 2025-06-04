@@ -912,6 +912,23 @@ fn extract_from_tokens(
     }
 }
 
+#[cfg(test)]
+mod extractor_tests {
+    #[test]
+    fn test_extract_text_public() {
+        let pdf_data = include_bytes!("../../sample-pdfs/digitally_signed.pdf").to_vec();
+
+        match super::extract_text(pdf_data) {
+            Ok(text_per_page) => {
+                for (i, text) in text_per_page.iter().enumerate() {
+                    println!("Page {}: {}", i + 1, text);
+                }
+            }
+            Err(e) => panic!("Failed to extract PDF text: {:?}", e),
+        }
+    }
+}
+
 #[cfg(feature = "private_tests")]
 mod test {
     use super::extract_text;
