@@ -582,6 +582,7 @@ name = "wasm"
 version = "0.1.0"
 dependencies = [
  "core",
+ "extractor",
  "getrandom",
  "wasm-bindgen",
 ]
