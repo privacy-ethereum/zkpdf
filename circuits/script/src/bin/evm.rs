@@ -26,8 +26,12 @@ pub const FIBONACCI_ELF: &[u8] = include_elf!("fibonacci-program");
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct EVMArgs {
-    #[arg(long, default_value = "20")]
-    n: u32,
+    #[arg(
+        long,
+        default_value = "../../pdf-utils/sample-pdfs/digitally_signed.pdf"
+    )]
+    pdf_path: String,
+
     #[arg(long, value_enum, default_value = "groth16")]
     system: ProofSystem,
 }
@@ -43,9 +47,7 @@ enum ProofSystem {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct SP1FibonacciProofFixture {
-    a: u32,
-    b: u32,
-    n: u32,
+    result: bool,
     vkey: String,
     public_values: String,
     proof: String,
@@ -61,14 +63,24 @@ fn main() {
     // Setup the prover client.
     let client = ProverClient::from_env();
 
+    // Load the PDF bytes from the provided path
+    let pdf_bytes = std::fs::read(&args.pdf_path)
+        .unwrap_or_else(|_| panic!("Failed to read PDF file at {}", args.pdf_path));
+
     // Setup the program.
     let (pk, vk) = client.setup(FIBONACCI_ELF);
 
     // Setup the inputs.
+    let name = "Sample Signed PDF Document";
+    let page_number: u8 = 0;
+    let offset: usize = 0;
     let mut stdin = SP1Stdin::new();
-    stdin.write(&args.n);
+    stdin.write(&pdf_bytes);
+    stdin.write(&page_number);
+    stdin.write(&offset);
+    stdin.write(&name.to_string());
 
-    println!("n: {}", args.n);
+    println!("pdf_path: {}", args.pdf_path);
     println!("Proof System: {:?}", args.system);
 
     // Generate the proof based on the selected proof system.
@@ -89,13 +101,11 @@ fn create_proof_fixture(
 ) {
     // Deserialize the public values.
     let bytes = proof.public_values.as_slice();
-    let PublicValuesStruct { n, a, b } = PublicValuesStruct::abi_decode(bytes).unwrap();
+    let PublicValuesStruct { result } = PublicValuesStruct::abi_decode(bytes, false).unwrap();
 
     // Create the testing fixture so we can test things end-to-end.
     let fixture = SP1FibonacciProofFixture {
-        a,
-        b,
-        n,
+        result,
         vkey: vk.bytes32().to_string(),
         public_values: format!("0x{}", hex::encode(bytes)),
         proof: format!("0x{}", hex::encode(proof.bytes())),
@@ -103,18 +113,13 @@ fn create_proof_fixture(
 
     // The verification key is used to verify that the proof corresponds to the execution of the
     // program on the given input.
-    //
-    // Note that the verification key stays the same regardless of the input.
     println!("Verification Key: {}", fixture.vkey);
 
     // The public values are the values which are publicly committed to by the zkVM.
-    //
-    // If you need to expose the inputs or outputs of your program, you should commit them in
-    // the public values.
     println!("Public Values: {}", fixture.public_values);
 
     // The proof proves to the verifier that the program was executed with some inputs that led to
-    // the give public values.
+    // the given public values.
     println!("Proof Bytes: {}", fixture.proof);
 
     // Save the fixture to a file.
