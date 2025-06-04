@@ -28,8 +28,11 @@ struct Args {
     #[arg(long)]
     prove: bool,
 
-    #[arg(long, default_value = "20")]
-    n: u32,
+    #[arg(
+        long,
+        default_value = "../../pdf-utils/sample-pdfs/digitally_signed.pdf"
+    )]
+    pdf_path: String,
 }
 
 fn main() {
@@ -48,11 +51,22 @@ fn main() {
     // Setup the prover client.
     let client = ProverClient::from_env();
 
+    // Load the PDF bytes from the provided path
+    let pdf_bytes = std::fs::read(&args.pdf_path)
+        .unwrap_or_else(|_| panic!("Failed to read PDF file at {}", args.pdf_path));
+
+    let name = "Sample Signed PDF Document";
+    let page_number: u8 = 0;
+    let offset: usize = 0;
+
     // Setup the inputs.
     let mut stdin = SP1Stdin::new();
-    stdin.write(&args.n);
+    stdin.write(&pdf_bytes);
+    stdin.write(&page_number);
+    stdin.write(&offset);
+    stdin.write(&name.to_string());
 
-    println!("n: {}", args.n);
+    println!("pdf_path: {}", args.pdf_path);
 
     if args.execute {
         // Execute the program
@@ -60,18 +74,9 @@ fn main() {
         println!("Program executed successfully.");
 
         // Read the output.
-        let decoded = PublicValuesStruct::abi_decode(output.as_slice()).unwrap();
-        let PublicValuesStruct { n, a, b } = decoded;
-        println!("n: {}", n);
-        println!("a: {}", a);
-        println!("b: {}", b);
-
-        let (expected_a, expected_b) = fibonacci_lib::fibonacci(n);
-        assert_eq!(a, expected_a);
-        assert_eq!(b, expected_b);
-        println!("Values are correct!");
-
-        // Record the number of cycles executed.
+        let decoded = PublicValuesStruct::abi_decode(output.as_slice(), true).unwrap();
+        let PublicValuesStruct { result } = decoded;
+        println!("Result: {}", result);
         println!("Number of cycles: {}", report.total_instruction_count());
     } else {
         // Setup the program for proving.
