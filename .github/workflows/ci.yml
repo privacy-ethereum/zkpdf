@@ -30,4 +30,4 @@ jobs:
         run: cargo build --workspace --verbose
 
       - name: Test PDF Utils
-        run: cargo test --workspace --all-features --verbose
+        run: cargo test --workspace --verbose

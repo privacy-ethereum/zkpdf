@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+  <body>
+    <h2>PDF WASM Test</h2>
+    <input type="file" id="pdfFile" />
+    <script type="module">
+      import init, { wasm_verify_text } from "./pkg/wasm.js";
+
+      async function run() {
+        await init(); 
+
+        document.getElementById("pdfFile").addEventListener("change", async (event) => {
+          const file = event.target.files[0];
+          const buffer = await file.arrayBuffer();
+          const bytes = new Uint8Array(buffer);
+          console.log("File loaded, length: " + bytes.length);
+
+          const result = wasm_verify_text(bytes, 0, "YELAGANDULA VIKAS RUSHI", 119);
+          alert("Verification result: " + result);
+        });
+      }
+
+      run();
+    </script>
+  </body>
+</html>
