@@ -1,0 +1,33 @@
+name: PDF Utils CI
+
+on:
+  push:
+    paths:
+      - "pdf-utils/**"
+  pull_request:
+    paths:
+      - "pdf-utils/**"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: pdf-utils
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Build PDF Utils workspace
+        run: cargo build --workspace --verbose
+
+      - name: Test PDF Utils
+        run: cargo test --workspace --all-features --verbose
