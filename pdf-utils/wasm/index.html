@@ -2,20 +2,49 @@
 <html>
   <body>
     <h2>PDF WASM Test</h2>
-    <input type="file" id="pdfFile" />
+
+    <input type="file" id="pdfFile" /><br /><br />
+
+    <label>Page Number:</label>
+    <input type="number" id="pageNumber" value="0" /><br />
+
+    <label>Substring to Match:</label>
+    <input type="text" id="substring" value="YELAGANDULA VIKAS RUSHI" /><br />
+
+    <label>Position in Page:</label>
+    <input type="number" id="position" value="119" /><br /><br />
+
+    <button id="verifyBtn">Verify Text</button>
+
     <script type="module">
-      import init, { wasm_verify_text } from "./pkg/wasm.js";
+      import init, { wasm_verify_text, wasm_extract_text } from "./pkg/wasm.js";
 
       async function run() {
-        await init(); 
+        await init();
+
+        let fileBytes = null;
 
         document.getElementById("pdfFile").addEventListener("change", async (event) => {
           const file = event.target.files[0];
           const buffer = await file.arrayBuffer();
-          const bytes = new Uint8Array(buffer);
-          console.log("File loaded, length: " + bytes.length);
+          fileBytes = new Uint8Array(buffer);
+          console.log("File loaded, length:", fileBytes.length);
 
-          const result = wasm_verify_text(bytes, 0, "YELAGANDULA VIKAS RUSHI", 119);
+          const pages = wasm_extract_text(fileBytes);
+          console.log("Extracted text:", pages);
+        });
+
+        document.getElementById("verifyBtn").addEventListener("click", () => {
+          if (!fileBytes) {
+            alert("Please load a PDF file first.");
+            return;
+          }
+
+          const pageNumber = parseInt(document.getElementById("pageNumber").value);
+          const substring = document.getElementById("substring").value;
+          const position = parseInt(document.getElementById("position").value);
+
+          const result = wasm_verify_text(fileBytes, pageNumber, substring, position);
           alert("Verification result: " + result);
         });
       }
