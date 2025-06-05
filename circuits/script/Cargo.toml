@@ -16,6 +16,10 @@ path = "src/bin/evm.rs"
 name = "vkey"
 path = "src/bin/vkey.rs"
 
+[[bin]]
+name = "prover"
+path = "src/bin/prover.rs"
+
 [dependencies]
 sp1-sdk = "4.1.7"
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
@@ -26,6 +30,11 @@ hex = "0.4.3"
 alloy-sol-types = { workspace = true }
 fibonacci-lib = { path = "../lib" }
 dotenv = "0.15.0"
+tokio = { version = "1", features = ["full"] }
+axum = { version = "0.7", features = ["json"] }
+hyper = { version = "1", features = ["full"] }
+bincode = "1.3.3"
+tower-http = { version = "0.5", features = ["cors"] }
 
 [build-dependencies]
 sp1-build = "4.1.7"

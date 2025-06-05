@@ -9,10 +9,9 @@ use fibonacci_lib::PublicValuesStruct;
 pub fn main() {
     let pdf_bytes = sp1_zkvm::io::read::<Vec<u8>>();
     let page_number = sp1_zkvm::io::read::<u8>();
-    let offset = sp1_zkvm::io::read::<usize>();
     let sub_string = sp1_zkvm::io::read::<String>();
 
-    let is_valid = verify_text(pdf_bytes, page_number, &sub_string, offset).is_ok();
+    let is_valid = verify_text(pdf_bytes, page_number, &sub_string).is_ok();
 
     let bytes = PublicValuesStruct::abi_encode(&PublicValuesStruct { result: is_valid });
 
