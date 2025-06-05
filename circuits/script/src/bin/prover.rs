@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use sp1_sdk::{include_elf, ProverClient, SP1ProofWithPublicValues, SP1Stdin};
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
+use tower_http::cors::{Any, CorsLayer};
 
 pub const FIBONACCI_ELF: &[u8] = include_elf!("fibonacci-program");
 
@@ -67,9 +68,15 @@ async fn main() {
         "Invalid or missing NETWORK_PRIVATE_KEY"
     );
 
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
+
     let app = Router::new()
         .route("/prove", post(prove))
-        .route("/verify", post(verify));
+        .route("/verify", post(verify))
+        .layer(cors);
 
     let port: u16 = std::env::var("PORT")
         .ok()
