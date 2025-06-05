@@ -16,3 +16,12 @@ pub fn wasm_extract_text(pdf_bytes: &[u8]) -> Vec<JsValue> {
         Err(_) => Vec::new(),
     }
 }
+
+/// WebAssembly export: extract raw text content per page
+#[wasm_bindgen]
+pub fn wasm_extract_text(pdf_bytes: &[u8]) -> Vec<JsValue> {
+    match extract_text(pdf_bytes.to_vec()) {
+        Ok(pages) => pages.into_iter().map(JsValue::from).collect(),
+        Err(_) => Vec::new(),
+    }
+}
