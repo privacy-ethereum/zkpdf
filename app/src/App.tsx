@@ -131,6 +131,7 @@ export default function App() {
 
       const wasm = await loadWasm();
       const extracted = wasm.wasm_extract_text(uint8);
+      console.log("Extracted text:", extracted);
       setPages(extracted);
       setSelectedPage(0);
 
@@ -153,13 +154,8 @@ export default function App() {
   const onVerifySelection = async () => {
     if (!pdfBytes) return;
     const wasm = await loadWasm();
-    console.log(selectedPage);
-    const ok = wasm.wasm_verify_text(
-      pdfBytes,
-      selectedPage,
-      selectedText,
-      selectionStart
-    );
+    const ok = wasm.wasm_verify_text(pdfBytes, selectedPage, selectedText);
+    console.log("Verification result:", ok);
     setVerificationResult(ok);
   };
 
