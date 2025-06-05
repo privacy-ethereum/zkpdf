@@ -57,13 +57,11 @@ fn main() {
 
     let name = "Sample Signed PDF Document";
     let page_number: u8 = 0;
-    let offset: usize = 0;
 
     // Setup the inputs.
     let mut stdin = SP1Stdin::new();
     stdin.write(&pdf_bytes);
     stdin.write(&page_number);
-    stdin.write(&offset);
     stdin.write(&name.to_string());
 
     println!("pdf_path: {}", args.pdf_path);

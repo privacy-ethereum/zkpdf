@@ -6,7 +6,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const API_PROVE = "http://localhost:3000/prove";
-const API_VERIFY = "http://localhost:3000/verify";
 const PDF_PATH = path.resolve(
   __dirname,
   "../../pdf-utils/sample-pdfs/digitally_signed.pdf"
@@ -40,22 +39,7 @@ if (!proveRes.ok) {
   process.exit(1);
 }
 
-const proofData = await proveRes.json();
+const proofData = await proveRes.toString();
 console.log("✅ Proof generated:\n", proofData);
 
 console.log("\n🔎 Sending to /verify...");
-
-const verifyRes = await fetch(API_VERIFY, {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify(proofData),
-});
-
-if (!verifyRes.ok) {
-  console.error(`❌ /verify failed: ${verifyRes.status}`);
-  console.error(await verifyRes.text());
-  process.exit(1);
-}
-
-const verifyData = await verifyRes.json();
-console.log("🔐 Verification result:\n", verifyData);

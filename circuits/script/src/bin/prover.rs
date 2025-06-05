@@ -10,7 +10,6 @@ pub const FIBONACCI_ELF: &[u8] = include_elf!("fibonacci-program");
 struct ProofRequest {
     pdf_bytes: Vec<u8>,
     page_number: u8,
-    offset: usize,
     sub_string: String,
 }
 
@@ -22,12 +21,11 @@ struct VerifyResponse {
 
 async fn prove(Json(body): Json<ProofRequest>) -> Json<SP1ProofWithPublicValues> {
     let client = ProverClient::from_env();
-    let (pk, _vk) = client.setup(FIBONACCI_ELF);
+    let (pk, vk) = client.setup(FIBONACCI_ELF);
 
     let mut stdin = SP1Stdin::new();
     stdin.write(&body.pdf_bytes);
     stdin.write(&body.page_number);
-    stdin.write(&body.offset);
     stdin.write(&body.sub_string);
 
     let proof = client
