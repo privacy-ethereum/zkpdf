@@ -1721,14 +1721,18 @@ name = "fibonacci-script"
 version = "0.1.0"
 dependencies = [
  "alloy-sol-types",
+ "axum",
+ "bincode",
  "clap",
  "dotenv",
  "fibonacci-lib",
  "hex",
+ "hyper",
  "serde",
  "serde_json",
  "sp1-build",
  "sp1-sdk",
+ "tokio",
  "tracing",
 ]
 
