@@ -1,0 +1,184 @@
+
+body {
+  margin: 0;
+  padding: 20px;
+  background-color: #f4f6f8;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.6;
+  color: #333;
+}
+
+h2 {
+  color: #337ab7;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+p {
+  color: #555;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.container {
+  max-width: 720px;
+  margin: 2rem auto;
+  background-color: #ffffff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  padding: 1.5rem;
+  box-sizing: border-box;
+}
+
+/* ============================================================
+   FORM ELEMENT STYLING
+   ============================================================ */
+
+/* Style the file‐selector button about uploading PDFs */
+input[type="file"]::file-selector-button {
+  background-color: #337ab7;
+  color: white;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+input[type="file"]::file-selector-button:hover {
+  background-color: #286090;
+}
+
+/* Inputs, textarea, and the “page” select should share a neutral look */
+#page-select,
+input[type="text"],
+input[type="number"],
+textarea {
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+  margin-bottom: 10px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Only the “page” dropdown needs to shrink to fit its content */
+#page-select {
+  width: auto;
+}
+
+/* Monospace font for the large PDF‐text textarea */
+textarea {
+  font-family: 'Courier New', Courier, monospace;
+  resize: vertical;
+}
+
+/* Standard button style */
+button {
+  background-color: #5cb85c;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.3s ease;
+}
+
+button:hover {
+  background-color: #4cae4c;
+}
+
+/* ============================================================
+   FEEDBACK TEXT (status, errors, verification results)
+   ============================================================ */
+
+.status {
+  margin-top: 1rem;
+  font-weight: bold;
+  color: #00c000; /* green for “done” / neutral status */
+}
+
+.error {
+  margin-top: 1rem;
+  color: #d9534f; /* red */
+  font-weight: bold;
+}
+
+.signature-valid {
+  margin-top: 1rem;
+  font-weight: bold;
+}
+
+.signature-valid .yes {
+  color: green;
+}
+
+.signature-valid .no {
+  color: red;
+}
+
+/* ============================================================
+   SIGNER’S PUBLIC KEY BLOCK
+   ============================================================ */
+
+.public-key pre {
+  background-color: #eee;
+  padding: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  font-size: 0.9rem;
+  color: #222;
+}
+
+/* ============================================================
+   PAGE + SELECTION / VERIFICATION CARD
+   ============================================================ */
+
+.page-container {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background-color: #ffffff; /* white card background */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.page-select-container {
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+}
+
+.page-select-container label {
+  font-weight: 600;
+  margin-right: 0.5rem;
+}
+
+.verify-section {
+  margin-top: 1.5rem;
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.verify-section > div {
+  flex: 1;
+}
+
+.verification-result {
+  margin-left: 1rem;
+  font-weight: bold;
+}
+
+.verified {
+  color: green;
+}
+
+.not-verified {
+  color: red;
+}
