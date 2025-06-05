@@ -5,7 +5,7 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const API_PROVE = "http://localhost:3000/prove";
+const API_PROVE = "http://localhost:3001/prove";
 const PDF_PATH = path.resolve(
   __dirname,
   "../../pdf-utils/sample-pdfs/digitally_signed.pdf"
