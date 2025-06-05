@@ -46,6 +46,11 @@ const Home: React.FC = () => {
     null
   );
 
+  // <-- New state for proof:
+  const [proofData, setProofData] = useState<string | null>(null);
+  const [proofError, setProofError] = useState<string | null>(null);
+  const [proofLoading, setProofLoading] = useState<boolean>(false);
+
   useEffect(() => {
     initPKIjs();
   }, []);
@@ -62,6 +67,11 @@ const Home: React.FC = () => {
     setSelectionStart(0);
     setVerificationResult(null);
 
+    // Clear any previous proof data/errors when a new file is loaded:
+    setProofData(null);
+    setProofError(null);
+    setProofLoading(false);
+
     if (!e.target.files || e.target.files.length === 0) {
       setError("No file chosen.");
       return;
@@ -75,6 +85,7 @@ const Home: React.FC = () => {
 
       setStatus("Scanning for ByteRange and Contents…");
 
+      // find /ByteRange and /Contents in the textual PDF
       const pdfText = new TextDecoder("latin1").decode(uint8);
       const byteRangeMatch =
         /\/ByteRange\s*\[\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*\]/.exec(pdfText);
@@ -156,6 +167,61 @@ const Home: React.FC = () => {
     setVerificationResult(ok);
   };
 
+  // <-- New handler to call /prove:
+  const onGenerateProof = async () => {
+    if (!pdfBytes) {
+      setProofError("No PDF loaded.");
+      return;
+    }
+    if (!selectedText) {
+      setProofError("No substring selected/entered to prove.");
+      return;
+    }
+
+    setProofLoading(true);
+    setProofError(null);
+    setProofData(null);
+
+    try {
+      const pdfArray: number[] = Array.from(pdfBytes);
+
+      const proofBody = {
+        pdf_bytes: pdfArray,
+        page_number: selectedPage,
+        offset: selectionStart,
+        sub_string: selectedText,
+      };
+
+      const res = await fetch("http://localhost:3001/prove", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(proofBody),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(
+          `Proof endpoint failed (status ${res.status}): ${text}`
+        );
+      }
+
+      let data: any;
+      const contentType = res.headers.get("Content-Type") || "";
+      if (contentType.includes("application/json")) {
+        data = await res.json();
+        setProofData(JSON.stringify(data, null, 2));
+      } else {
+        data = await res.text();
+        setProofData(data);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setProofError(err.message || String(err));
+    } finally {
+      setProofLoading(false);
+    }
+  };
+
   return (
     <div className="max-w-2xl mx-auto mt-8 bg-white border border-gray-300 rounded-lg shadow p-6">
       <h2 className="text-2xl text-center text-blue-600 mb-4">
@@ -163,7 +229,7 @@ const Home: React.FC = () => {
       </h2>
       <p className="text-center text-gray-600 mb-6">
         Upload a signed PDF. We’ll check its PKCS#7 signature and let you verify
-        selected text.
+        selected text (and generate a proof if desired).
       </p>
 
       <input
@@ -207,7 +273,7 @@ const Home: React.FC = () => {
 
       {pages.length > 0 && (
         <div className="mt-8 p-6 border border-gray-300 rounded-lg bg-white shadow">
-          <strong>Select or enter text to verify:</strong>
+          <strong>Select or enter text to verify (and generate proof):</strong>
 
           <div className="mb-4 flex items-center">
             <label htmlFor="page-select" className="font-semibold mr-2">
@@ -237,7 +303,7 @@ const Home: React.FC = () => {
 
           <div className="mt-6 flex gap-4 items-start">
             <div className="flex-1">
-              <label>Substring to verify:</label>
+              <label>Substring to verify / prove:</label>
               <input
                 type="text"
                 value={selectedText}
@@ -260,7 +326,7 @@ const Home: React.FC = () => {
             </div>
           </div>
 
-          <div className="mt-4">
+          <div className="mt-4 flex gap-4">
             <button
               onClick={onVerifySelection}
               className="bg-green-600 text-white px-6 py-3 rounded hover:bg-green-700 transition-colors"
@@ -278,6 +344,32 @@ const Home: React.FC = () => {
               </span>
             )}
           </div>
+
+          <div className="mt-6">
+            <button
+              onClick={onGenerateProof}
+              disabled={proofLoading}
+              className={
+                "bg-blue-600 text-white px-6 py-3 rounded hover:bg-blue-700 transition-colors " +
+                (proofLoading ? "opacity-50 cursor-not-allowed" : "")
+              }
+            >
+              {proofLoading ? "Generating Proof…" : "Generate Proof"}
+            </button>
+          </div>
+
+          {proofError && (
+            <div className="mt-4 text-red-600 font-bold">
+              <strong>Proof Error:</strong> {proofError}
+            </div>
+          )}
+
+          {proofData && (
+            <div className="mt-4 p-4 border border-gray-300 rounded bg-gray-100 overflow-x-auto text-sm">
+              <strong>Proof Output:</strong>
+              <pre className="mt-2 whitespace-pre-wrap">{proofData}</pre>
+            </div>
+          )}
         </div>
       )}
     </div>
