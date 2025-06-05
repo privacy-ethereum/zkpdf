@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, ChangeEvent, useEffect } from "react";
+import React, { useState, ChangeEvent, useEffect, useMemo } from "react";
 import * as asn1js from "asn1js";
 import { setEngine, CryptoEngine } from "pkijs";
 import { ContentInfo, SignedData, Certificate } from "pkijs";
@@ -46,10 +46,16 @@ const Home: React.FC = () => {
     null
   );
 
-  // <-- New state for proof:
+  // Proof-related state:
   const [proofData, setProofData] = useState<string | null>(null);
   const [proofError, setProofError] = useState<string | null>(null);
   const [proofLoading, setProofLoading] = useState<boolean>(false);
+
+  // Toggle for decoded public signals
+  const [showDecoded, setShowDecoded] = useState(false);
+
+  // Extracted boolean from public signals
+  const [proofVerified, setProofVerified] = useState<boolean | null>(null);
 
   useEffect(() => {
     initPKIjs();
@@ -67,13 +73,16 @@ const Home: React.FC = () => {
     setSelectionStart(0);
     setVerificationResult(null);
 
-    // Clear any previous proof data/errors when a new file is loaded:
+    // Reset proof state
     setProofData(null);
     setProofError(null);
     setProofLoading(false);
+    setShowDecoded(false);
+    setProofVerified(null);
 
     if (!e.target.files || e.target.files.length === 0) {
       setError("No file chosen.");
+      setStatus("Error.");
       return;
     }
 
@@ -116,12 +125,16 @@ const Home: React.FC = () => {
       if (asn1.offset === -1)
         throw new Error("ASN.1 parse error on signature DER.");
 
-      const contentInfo = new ContentInfo({ schema: asn1.result });
+      const contentInfo = new ContentInfo({
+        schema: asn1.result,
+      });
       if (contentInfo.contentType !== "1.2.840.113549.1.7.2") {
         throw new Error("Not a SignedData ContentInfo (OID mismatch).");
       }
 
-      const signedDataPKI = new SignedData({ schema: contentInfo.content });
+      const signedDataPKI = new SignedData({
+        schema: contentInfo.content,
+      });
       const verified = await signedDataPKI.verify({
         signer: 0,
         trustedCerts: [],
@@ -162,13 +175,18 @@ const Home: React.FC = () => {
 
   const onVerifySelection = async () => {
     if (!pdfBytes) return;
-    const wasm = await loadWasm();
-    const ok = wasm.wasm_verify_text(pdfBytes, selectedPage, selectedText);
-    setVerificationResult(ok);
+    try {
+      const wasm = await loadWasm();
+      const ok = wasm.wasm_verify_text(pdfBytes, selectedPage, selectedText);
+      setVerificationResult(ok);
+    } catch (e: any) {
+      console.error(e);
+      setError("Verification failed.");
+    }
   };
 
-  // <-- New handler to call /prove:
   const onGenerateProof = async () => {
+    setStatus("Generating proof…");
     if (!pdfBytes) {
       setProofError("No PDF loaded.");
       return;
@@ -181,6 +199,8 @@ const Home: React.FC = () => {
     setProofLoading(true);
     setProofError(null);
     setProofData(null);
+    setShowDecoded(false);
+    setProofVerified(null);
 
     try {
       const pdfArray: number[] = Array.from(pdfBytes);
@@ -222,11 +242,34 @@ const Home: React.FC = () => {
     }
   };
 
+  // Decode public signals from proofData
+  const decodedSignals = useMemo(() => {
+    if (!proofData) return null;
+    try {
+      const obj = JSON.parse(proofData);
+      const dataArr: number[] = obj?.public_values?.buffer?.data;
+      if (!Array.isArray(dataArr)) return null;
+      return dataArr.map((val) => Boolean(val));
+    } catch {
+      return null;
+    }
+  }, [proofData]);
+
+  const onVerifyProof = () => {
+    setStatus("Verifying proof…");
+    if (!decodedSignals || decodedSignals.length === 0) {
+      setProofVerified(null);
+      return;
+    }
+    // Take the last boolean in decodedSignals as the "correctness" flag
+    const last = decodedSignals[decodedSignals.length - 1];
+    setProofVerified(last);
+    setStatus("Proof verification complete.");
+  };
+
   return (
-    <div className="max-w-2xl mx-auto mt-8 bg-white border border-gray-300 rounded-lg shadow p-6">
-      <h2 className="text-2xl text-center text-blue-600 mb-4">
-        🖨️ PDF Signature Verifier
-      </h2>
+    <div className="max-w-2xl mx-auto mt-8 bg-gray-50 border border-gray-200 rounded-lg shadow p-6">
+      <h2 className="text-2xl text-center text-blue-600 mb-4">Proof of PDF</h2>
       <p className="text-center text-gray-600 mb-6">
         Upload a signed PDF. We’ll check its PKCS#7 signature and let you verify
         selected text (and generate a proof if desired).
@@ -236,7 +279,7 @@ const Home: React.FC = () => {
         type="file"
         accept=".pdf"
         onChange={onFileChange}
-        className="mb-4 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-blue-600 file:text-white hover:file:bg-blue-700"
+        className="mb-4 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-gray-700 file:text-white hover:file:bg-gray-800"
       />
 
       <div className="mt-4 font-bold text-green-600">
@@ -273,7 +316,9 @@ const Home: React.FC = () => {
 
       {pages.length > 0 && (
         <div className="mt-8 p-6 border border-gray-300 rounded-lg bg-white shadow">
-          <strong>Select or enter text to verify (and generate proof):</strong>
+          <strong className="block mb-2">
+            Select or enter text to verify (and generate proof):
+          </strong>
 
           <div className="mb-4 flex items-center">
             <label htmlFor="page-select" className="font-semibold mr-2">
@@ -283,7 +328,7 @@ const Home: React.FC = () => {
               id="page-select"
               value={selectedPage}
               onChange={(e) => setSelectedPage(parseInt(e.target.value, 10))}
-              className="border border-gray-300 rounded p-3"
+              className="border border-gray-300 rounded p-2"
             >
               {pages.map((_, i) => (
                 <option key={i} value={i}>
@@ -298,22 +343,22 @@ const Home: React.FC = () => {
             readOnly
             onMouseUp={onTextSelect}
             rows={8}
-            className="font-mono border border-gray-300 rounded p-3 mb-4 w-full resize-y"
+            className="font-mono border border-gray-300 rounded p-3 mb-4 w-full resize-y bg-gray-50"
           ></textarea>
 
           <div className="mt-6 flex gap-4 items-start">
             <div className="flex-1">
-              <label>Substring to verify / prove:</label>
+              <label className="block mb-1">Substring to verify / prove:</label>
               <input
                 type="text"
                 value={selectedText}
                 onChange={(e) => setSelectedText(e.target.value)}
                 placeholder="Either click in the textarea or type here"
-                className="w-full border border-gray-300 rounded p-3"
+                className="w-full border border-gray-300 rounded p-2 bg-gray-50"
               />
             </div>
             <div className="flex-1">
-              <label>Offset:</label>
+              <label className="block mb-1">Offset:</label>
               <input
                 type="number"
                 value={selectionStart}
@@ -321,7 +366,7 @@ const Home: React.FC = () => {
                   setSelectionStart(parseInt(e.target.value, 10))
                 }
                 min={0}
-                className="w-full border border-gray-300 rounded p-3"
+                className="w-full border border-gray-300 rounded p-2 bg-gray-50"
               />
             </div>
           </div>
@@ -329,16 +374,15 @@ const Home: React.FC = () => {
           <div className="mt-4 flex gap-4">
             <button
               onClick={onVerifySelection}
-              className="bg-green-600 text-white px-6 py-3 rounded hover:bg-green-700 transition-colors"
+              className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 transition-colors"
             >
               Verify Selected Text
             </button>
             {verificationResult !== null && (
               <span
-                className={
-                  "ml-4 font-bold " +
-                  (verificationResult ? "text-green-600" : "text-red-600")
-                }
+                className={`ml-4 font-bold ${
+                  verificationResult ? "text-green-600" : "text-red-600"
+                }`}
               >
                 {verificationResult ? "✅ Verified" : "❌ Not Verified"}
               </span>
@@ -349,10 +393,9 @@ const Home: React.FC = () => {
             <button
               onClick={onGenerateProof}
               disabled={proofLoading}
-              className={
-                "bg-blue-600 text-white px-6 py-3 rounded hover:bg-blue-700 transition-colors " +
-                (proofLoading ? "opacity-50 cursor-not-allowed" : "")
-              }
+              className={`bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition-colors ${
+                proofLoading ? "opacity-50 cursor-not-allowed" : ""
+              }`}
             >
               {proofLoading ? "Generating Proof…" : "Generate Proof"}
             </button>
@@ -368,6 +411,50 @@ const Home: React.FC = () => {
             <div className="mt-4 p-4 border border-gray-300 rounded bg-gray-100 overflow-x-auto text-sm">
               <strong>Proof Output:</strong>
               <pre className="mt-2 whitespace-pre-wrap">{proofData}</pre>
+
+              <div className="mt-4 flex flex-col gap-2">
+                <div className="flex items-center">
+                  <input
+                    id="toggle-decoded"
+                    type="checkbox"
+                    checked={showDecoded}
+                    onChange={(e) => setShowDecoded(e.target.checked)}
+                    className="mr-2 h-4 w-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <label
+                    htmlFor="toggle-decoded"
+                    className="font-medium text-gray-700"
+                  >
+                    Show decoded public signals
+                  </label>
+                </div>
+
+                <button
+                  onClick={onVerifyProof}
+                  className="self-start bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition-colors"
+                >
+                  Verify Proof
+                </button>
+              </div>
+
+              {showDecoded && decodedSignals && (
+                <div className="mt-4 bg-white border border-gray-200 rounded p-3">
+                  <strong>Decoded Public Signals:</strong>
+                  <pre className="mt-2 whitespace-pre-wrap text-gray-800">
+                    {JSON.stringify(decodedSignals, null, 2)}
+                  </pre>
+                </div>
+              )}
+
+              {proofVerified !== null && (
+                <div className="mt-4 font-bold text-lg">
+                  {proofVerified ? (
+                    <span className="text-green-600">✅ Proof is valid</span>
+                  ) : (
+                    <span className="text-red-600">❌ Proof is invalid</span>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
