@@ -1,9 +1,9 @@
-import React, { useState, type ChangeEvent } from "react";
+"use client";
+import React, { useState, ChangeEvent, useEffect } from "react";
 import * as asn1js from "asn1js";
 import { setEngine, CryptoEngine } from "pkijs";
 import { ContentInfo, SignedData, Certificate } from "pkijs";
-import { loadWasm } from "./wasm.ts";
-import "./App.css";
+import { loadWasm } from "./lib/wasm";
 
 function initPKIjs() {
   if ((window as any).__PKIJS_ENGINE_INITIALIZED__) return;
@@ -32,7 +32,7 @@ function publicKeyInfoToPEM(spkiBuffer: ArrayBuffer): string {
   ].join("\n");
 }
 
-export default function App() {
+const Home: React.FC = () => {
   const [status, setStatus] = useState("No file selected.");
   const [publicKeyPEM, setPublicKeyPEM] = useState<string | null>(null);
   const [signatureValid, setSignatureValid] = useState<boolean | null>(null);
@@ -46,7 +46,9 @@ export default function App() {
     null
   );
 
-  initPKIjs();
+  useEffect(() => {
+    initPKIjs();
+  }, []);
 
   const onFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     setStatus("Reading file...");
@@ -155,55 +157,67 @@ export default function App() {
   };
 
   return (
-    <div className="container">
-      <h2>🖨️ PDF Signature Verifier</h2>
-      <p>
+    <div className="max-w-2xl mx-auto mt-8 bg-white border border-gray-300 rounded-lg shadow p-6">
+      <h2 className="text-2xl text-center text-blue-600 mb-4">
+        🖨️ PDF Signature Verifier
+      </h2>
+      <p className="text-center text-gray-600 mb-6">
         Upload a signed PDF. We’ll check its PKCS#7 signature and let you verify
         selected text.
       </p>
 
-      <input type="file" accept=".pdf" onChange={onFileChange} />
+      <input
+        type="file"
+        accept=".pdf"
+        onChange={onFileChange}
+        className="mb-4 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-blue-600 file:text-white hover:file:bg-blue-700"
+      />
 
-      <div className="status">
+      <div className="mt-4 font-bold text-green-600">
         <strong>Status:</strong> {status}
       </div>
 
       {error && (
-        <div className="error">
+        <div className="mt-4 text-red-600 font-bold">
           <strong>Error:</strong> {error}
         </div>
       )}
 
       {signatureValid !== null && (
-        <div className="signature-valid">
+        <div className="mt-4 font-bold">
           <strong>Signature valid:</strong>{" "}
           {signatureValid ? (
-            <span className="yes">Yes ✅</span>
+            <span className="text-green-600">Yes ✅</span>
           ) : (
-            <span className="no">No ❌</span>
+            <span className="text-red-600">No ❌</span>
           )}
         </div>
       )}
 
       {publicKeyPEM && (
-        <div className="page-container">
-          <div className="public-key">
+        <div className="mt-8 p-6 border border-gray-300 rounded-lg bg-white shadow">
+          <div>
             <strong>Signer’s Public Key (PEM):</strong>
-            <pre>{publicKeyPEM}</pre>
+            <pre className="bg-gray-100 p-4 border border-gray-300 rounded overflow-x-auto whitespace-pre-wrap text-sm text-gray-800">
+              {publicKeyPEM}
+            </pre>
           </div>
         </div>
       )}
 
       {pages.length > 0 && (
-        <div className="page-container">
+        <div className="mt-8 p-6 border border-gray-300 rounded-lg bg-white shadow">
           <strong>Select or enter text to verify:</strong>
 
-          <div className="page-select-container">
-            <label htmlFor="page-select">Page:</label>
+          <div className="mb-4 flex items-center">
+            <label htmlFor="page-select" className="font-semibold mr-2">
+              Page:
+            </label>
             <select
               id="page-select"
               value={selectedPage}
               onChange={(e) => setSelectedPage(parseInt(e.target.value, 10))}
+              className="border border-gray-300 rounded p-3"
             >
               {pages.map((_, i) => (
                 <option key={i} value={i}>
@@ -218,19 +232,21 @@ export default function App() {
             readOnly
             onMouseUp={onTextSelect}
             rows={8}
+            className="font-mono border border-gray-300 rounded p-3 mb-4 w-full resize-y"
           ></textarea>
 
-          <div className="verify-section">
-            <div>
+          <div className="mt-6 flex gap-4 items-start">
+            <div className="flex-1">
               <label>Substring to verify:</label>
               <input
                 type="text"
                 value={selectedText}
                 onChange={(e) => setSelectedText(e.target.value)}
                 placeholder="Either click in the textarea or type here"
+                className="w-full border border-gray-300 rounded p-3"
               />
             </div>
-            <div>
+            <div className="flex-1">
               <label>Offset:</label>
               <input
                 type="number"
@@ -239,17 +255,23 @@ export default function App() {
                   setSelectionStart(parseInt(e.target.value, 10))
                 }
                 min={0}
+                className="w-full border border-gray-300 rounded p-3"
               />
             </div>
           </div>
 
-          <div style={{ marginTop: "1rem" }}>
-            <button onClick={onVerifySelection}>Verify Selected Text</button>
+          <div className="mt-4">
+            <button
+              onClick={onVerifySelection}
+              className="bg-green-600 text-white px-6 py-3 rounded hover:bg-green-700 transition-colors"
+            >
+              Verify Selected Text
+            </button>
             {verificationResult !== null && (
               <span
                 className={
-                  "verification-result " +
-                  (verificationResult ? "verified" : "not-verified")
+                  "ml-4 font-bold " +
+                  (verificationResult ? "text-green-600" : "text-red-600")
                 }
               >
                 {verificationResult ? "✅ Verified" : "❌ Not Verified"}
@@ -260,4 +282,6 @@ export default function App() {
       )}
     </div>
   );
-}
+};
+
+export default Home;
