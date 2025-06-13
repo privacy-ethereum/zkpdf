@@ -25,6 +25,56 @@ This repo enables such proving capability using SP1-based circuits.
 2. **Generate a zk proof** using SP1 circuits
 3. **Verify** the proof on-chain or off-chain
 
+## Setup
+
+Follow these steps to run the prover API and the demo frontend.
+
+### Requirements
+
+- [Rust](https://rustup.rs/)
+- [SP1](https://docs.succinct.xyz/docs/sp1/getting-started/install)
+
+### 1. Clone the Repository
+
+```bash
+git clone git@github.com:privacy-scaling-explorations/zkpdf
+cd zkpdf
+```
+
+### 2. Run the Prover API
+
+Start the prover service from the `circuits/script` directory. If you have access to the Succinct Prover Network, export your API key and run:
+
+```bash
+cd circuits/script
+SP1_PROVER=network \
+NETWORK_PRIVATE_KEY=<PROVER_NETWORK_KEY> \
+RUST_LOG=info \
+cargo run --release --bin prover
+```
+
+This will start the prover API on port **3001**.
+
+> **Note:** If you don’t have access to the Succinct Prover Network, you can omit the environment variables to run the prover locally. (This will take longer.)
+>
+> For local proof generation, refer to `scripts/evm.rs` or run:
+
+```bash
+RUST_LOG=info cargo run --release --bin evm -- --system groth16
+```
+
+### 3. Run the Frontend
+
+In a separate terminal, start the Next.js app:
+
+```bash
+cd app
+yarn install
+yarn dev
+```
+
+Visit [http://localhost:3000](http://localhost:3000) to view the interface.
+
 ## Use Cases
 
 - Prove that a document is signed without showing its contents
