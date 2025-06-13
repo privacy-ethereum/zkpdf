@@ -1,3 +1,2 @@
 [toolchain]
-channel = "1.81.0"
-components = ["llvm-tools", "rustc-dev"]
+channel = "1.87.0"
