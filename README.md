@@ -75,6 +75,14 @@ yarn dev
 
 Visit [http://localhost:3000](http://localhost:3000) to view the interface.
 
+
+
+https://github.com/user-attachments/assets/2c369a52-1d2c-4487-b47d-bcb7e6ff2fec
+
+
+
+
+
 ## Use Cases
 
 - Prove that a document is signed without showing its contents
