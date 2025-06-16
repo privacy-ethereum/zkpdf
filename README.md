@@ -1,6 +1,7 @@
 # Proving PDFs in ZKP
 
-This repository collects tools for verifying PDF documents within zero-knowledge proof systems.
+This repository contains tools for verifying PDF documents within zero-knowledge proof systems.
+Learn more in this blog post: https://pse.dev/blog/zkpdf-unlocking-verifiable-data
 
 ## Why?
 
