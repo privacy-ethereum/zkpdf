@@ -8,6 +8,61 @@ use crate::{
     types::PdfFont,
 };
 
+/// Split a line that may contain hex values with or without spaces
+/// e.g., "<0003><0003><0020>" or "<0003> <0003> <0020>" or mixed
+fn split_hex_values(line: &str) -> Vec<String> {
+    let mut result = Vec::new();
+    let mut current = String::new();
+    let mut in_bracket = false;
+
+    for ch in line.chars() {
+        match ch {
+            '<' => {
+                if in_bracket && !current.is_empty() {
+                    // New bracket while in one, save the previous
+                    result.push(format!("<{}>", current));
+                    current.clear();
+                }
+                in_bracket = true;
+            }
+            '>' => {
+                if in_bracket {
+                    result.push(format!("<{}>", current));
+                    current.clear();
+                    in_bracket = false;
+                }
+            }
+            '[' | ']' => {
+                // Handle array markers
+                result.push(ch.to_string());
+            }
+            ' ' | '\t' => {
+                // Whitespace, ignore unless inside brackets
+                if in_bracket {
+                    current.push(ch);
+                }
+            }
+            _ => {
+                if in_bracket {
+                    current.push(ch);
+                } else if !ch.is_whitespace() {
+                    // Non-bracketed content (shouldn't happen in well-formed CMap)
+                    current.push(ch);
+                }
+            }
+        }
+    }
+
+    // Handle any remaining content
+    if in_bracket && !current.is_empty() {
+        result.push(format!("<{}>", current));
+    } else if !current.is_empty() {
+        result.push(current);
+    }
+
+    result
+}
+
 // Use HashMap from std if available, otherwise use BTreeMap as a fallback for no_std
 // #[cfg(feature = "std")]
 // #[cfg(not(feature = "std"))]
@@ -30,7 +85,7 @@ pub fn parse_cmap(cmap_data: &[u8]) -> HashMap<u32, String> {
                 let l = lines[i].trim();
                 //  <src> <dst>
                 if l.starts_with('<') {
-                    let parts: Vec<&str> = l.split_ascii_whitespace().collect();
+                    let parts = split_hex_values(l);
                     if parts.len() >= 2 {
                         let src = parts[0].trim_matches(|c| c == '<' || c == '>');
                         let dst = parts[1].trim_matches(|c| c == '<' || c == '>');
@@ -51,7 +106,7 @@ pub fn parse_cmap(cmap_data: &[u8]) -> HashMap<u32, String> {
                 // <start> <end> <dst>
                 // or <start> <end> [<dst1> <dst2> ...]
                 if l.starts_with('<') {
-                    let parts: Vec<&str> = l.split_ascii_whitespace().collect();
+                    let parts = split_hex_values(l);
                     if parts.len() >= 3 {
                         let start_hex = parts[0].trim_matches(|c| c == '<' || c == '>');
                         let end_hex = parts[1].trim_matches(|c| c == '<' || c == '>');
@@ -59,33 +114,23 @@ pub fn parse_cmap(cmap_data: &[u8]) -> HashMap<u32, String> {
                             u32::from_str_radix(start_hex, 16),
                             u32::from_str_radix(end_hex, 16),
                         ) {
-                            if parts[2].starts_with('[') {
-                                let mut j = 2;
+                            if parts[2] == "[" {
+                                // Collect hex values between [ and ]
+                                let mut j = 3; // Start after the [
                                 let mut cur_code = start_code;
-                                // The parts may have the form ["[", "<0001>", "<0002>", "]"] or similar, or they might be all in one line.
-                                // Join all parts from the '[' to ']' into one string and remove brackets, then split.
-                                let mut array_str = String::new();
-                                while j < parts.len() {
-                                    array_str.push_str(parts[j]);
-                                    array_str.push(' ');
-                                    if parts[j].ends_with(']') {
-                                        break;
+
+                                while j < parts.len() && parts[j] != "]" {
+                                    if parts[j].starts_with("<") {
+                                        let dst = parts[j].trim_matches(|c| c == '<' || c == '>');
+                                        if let Some(dst_str) = parse_cmap_hex_to_string(dst) {
+                                            map.insert(cur_code, dst_str);
+                                        }
+                                        cur_code += 1;
+                                        if cur_code > end_code {
+                                            break;
+                                        }
                                     }
                                     j += 1;
-                                }
-                                array_str = array_str
-                                    .trim()
-                                    .trim_start_matches('[')
-                                    .trim_end_matches(']')
-                                    .trim()
-                                    .to_string();
-                                let dests: Vec<&str> = array_str.split_ascii_whitespace().collect();
-                                for dest_hex in dests {
-                                    let dst = dest_hex.trim_matches(|c| c == '<' || c == '>');
-                                    if let Some(dst_str) = parse_cmap_hex_to_string(dst) {
-                                        map.insert(cur_code, dst_str);
-                                    }
-                                    cur_code += 1;
                                 }
                             } else {
                                 //range mapping: <start> <end> <destStart>
