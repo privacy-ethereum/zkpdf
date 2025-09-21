@@ -85,15 +85,14 @@ function passStringToWasm0(arg, malloc, realloc) {
  * @param {Uint8Array} pdf_bytes
  * @param {number} page_number
  * @param {string} sub_string
- * @param {number} position
  * @returns {boolean}
  */
-export function wasm_verify_text(pdf_bytes, page_number, sub_string, position) {
+export function wasm_verify_text(pdf_bytes, page_number, sub_string) {
     const ptr0 = passArray8ToWasm0(pdf_bytes, wasm.__wbindgen_malloc);
     const len0 = WASM_VECTOR_LEN;
     const ptr1 = passStringToWasm0(sub_string, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len1 = WASM_VECTOR_LEN;
-    const ret = wasm.wasm_verify_text(ptr0, len0, page_number, ptr1, len1, position);
+    const ret = wasm.wasm_verify_text(ptr0, len0, page_number, ptr1, len1);
     return ret !== 0;
 }
 

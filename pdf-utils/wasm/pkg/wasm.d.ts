@@ -3,7 +3,7 @@
 /**
  * WebAssembly export: verify text and signature in a PDF
  */
-export function wasm_verify_text(pdf_bytes: Uint8Array, page_number: number, sub_string: string, position: number): boolean;
+export function wasm_verify_text(pdf_bytes: Uint8Array, page_number: number, sub_string: string): boolean;
 /**
  * WebAssembly export: extract raw text content per page
  */
@@ -13,7 +13,7 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
   readonly memory: WebAssembly.Memory;
-  readonly wasm_verify_text: (a: number, b: number, c: number, d: number, e: number, f: number) => number;
+  readonly wasm_verify_text: (a: number, b: number, c: number, d: number, e: number) => number;
   readonly wasm_extract_text: (a: number, b: number) => [number, number];
   readonly __wbindgen_export_0: WebAssembly.Table;
   readonly __wbindgen_malloc: (a: number, b: number) => number;
