@@ -55,6 +55,8 @@ const Home: React.FC = () => {
     initPKIjs();
   }, []);
 
+  const encoder = useMemo(() => new TextEncoder(), []);
+
   const onFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     setStatus("Reading file...");
     setError(null);
@@ -87,7 +89,7 @@ const Home: React.FC = () => {
       const br = /\/ByteRange\s*\[\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*\]/.exec(
         text
       );
-      if (!br) throw new Error("ByteRange not found.");
+      if (!br) throw new Error("PDF is not digitally signed.");
       const [s1, l1, s2, l2] = br.slice(1).map(Number);
       const ct = /\/Contents\s*<([0-9A-Fa-f\s]+)>/.exec(text);
       if (!ct) throw new Error("Contents not found.");
@@ -128,15 +130,23 @@ const Home: React.FC = () => {
 
   const onTextSelect = (e: any) => {
     const t = e.target as HTMLTextAreaElement;
-    setSelectedText(t.value.substring(t.selectionStart, t.selectionEnd));
-    setSelectionStart(t.selectionStart);
+    const value = t.value;
+    const start = t.selectionStart;
+    const end = t.selectionEnd;
+    setSelectedText(value.substring(start, end));
+    setSelectionStart(encoder.encode(value.slice(0, start)).length);
   };
 
   const onVerifySelection = async () => {
     if (!pdfBytes) return;
     const wasm = await loadWasm();
     if (!wasm) return setError("WASM not loaded.");
-    const res = wasm.wasm_verify_text(pdfBytes, selectedPage, selectedText);
+    const res = wasm.wasm_verify_text(
+      pdfBytes,
+      selectedPage,
+      selectedText,
+      selectionStart
+    );
     setVerificationResult(res);
   };
 
@@ -246,6 +256,7 @@ const Home: React.FC = () => {
                   readOnly
                   value={pages[selectedPage]}
                   onMouseUp={onTextSelect}
+                  onSelect={onTextSelect}
                   className="w-full h-full font-mono text-sm bg-transparent text-white focus:outline-none"
                 />
               </div>
