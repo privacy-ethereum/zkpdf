@@ -57,6 +57,7 @@ mod core_test {
 
         let text = extract_text(pdf_bytes.clone()).expect("Text extraction failed");
 
+        let page_number = 0;
         let name = "Digitally signed on\n22/11/2024";
         let result = verify_text(pdf_bytes, page_number, name);
 
