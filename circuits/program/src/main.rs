@@ -4,7 +4,7 @@ sp1_zkvm::entrypoint!(main);
 use core::verify_text;
 
 use alloy_sol_types::SolType;
-use fibonacci_lib::PublicValuesStruct;
+use zkpdf_lib::PublicValuesStruct;
 
 pub fn main() {
     let pdf_bytes = sp1_zkvm::io::read::<Vec<u8>>();

@@ -1,25 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Test, console} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {stdJson} from "forge-std/StdJson.sol";
-import {Fibonacci} from "../src/Fibonacci.sol";
+import {PdfVerifier} from "../src/PdfVerifier.sol";
 import {SP1VerifierGateway} from "@sp1-contracts/SP1VerifierGateway.sol";
 
 struct SP1ProofFixtureJson {
-    uint32 a;
-    uint32 b;
-    uint32 n;
+    bool result;
     bytes proof;
     bytes publicValues;
     bytes32 vkey;
 }
 
-contract FibonacciGroth16Test is Test {
+contract PdfVerifierGroth16Test is Test {
     using stdJson for string;
 
     address verifier;
-    Fibonacci public fibonacci;
+    PdfVerifier public pdfVerifier;
 
     function loadFixture() public view returns (SP1ProofFixtureJson memory) {
         string memory root = vm.projectRoot();
@@ -33,38 +31,34 @@ contract FibonacciGroth16Test is Test {
         SP1ProofFixtureJson memory fixture = loadFixture();
 
         verifier = address(new SP1VerifierGateway(address(1)));
-        fibonacci = new Fibonacci(verifier, fixture.vkey);
+        pdfVerifier = new PdfVerifier(verifier, fixture.vkey);
     }
 
-    function test_ValidFibonacciProof() public {
+    function test_ValidPdfProof() public {
         SP1ProofFixtureJson memory fixture = loadFixture();
 
         vm.mockCall(verifier, abi.encodeWithSelector(SP1VerifierGateway.verifyProof.selector), abi.encode(true));
 
-        (uint32 n, uint32 a, uint32 b) = fibonacci.verifyFibonacciProof(fixture.publicValues, fixture.proof);
-        assert(n == fixture.n);
-        assert(a == fixture.a);
-        assert(b == fixture.b);
+        bool result = pdfVerifier.verifyPdfProof(fixture.publicValues, fixture.proof);
+        assertTrue(result == fixture.result);
     }
 
-    function testRevert_InvalidFibonacciProof() public {
+    function testRevert_InvalidPdfProof() public {
         vm.expectRevert();
 
         SP1ProofFixtureJson memory fixture = loadFixture();
 
-        // Create a fake proof.
         bytes memory fakeProof = new bytes(fixture.proof.length);
 
-        fibonacci.verifyFibonacciProof(fixture.publicValues, fakeProof);
+        pdfVerifier.verifyPdfProof(fixture.publicValues, fakeProof);
     }
 }
 
-
-contract FibonacciPlonkTest is Test {
+contract PdfVerifierPlonkTest is Test {
     using stdJson for string;
 
     address verifier;
-    Fibonacci public fibonacci;
+    PdfVerifier public pdfVerifier;
 
     function loadFixture() public view returns (SP1ProofFixtureJson memory) {
         string memory root = vm.projectRoot();
@@ -78,28 +72,25 @@ contract FibonacciPlonkTest is Test {
         SP1ProofFixtureJson memory fixture = loadFixture();
 
         verifier = address(new SP1VerifierGateway(address(1)));
-        fibonacci = new Fibonacci(verifier, fixture.vkey);
+        pdfVerifier = new PdfVerifier(verifier, fixture.vkey);
     }
 
-    function test_ValidFibonacciProof() public {
+    function test_ValidPdfProof() public {
         SP1ProofFixtureJson memory fixture = loadFixture();
 
         vm.mockCall(verifier, abi.encodeWithSelector(SP1VerifierGateway.verifyProof.selector), abi.encode(true));
 
-        (uint32 n, uint32 a, uint32 b) = fibonacci.verifyFibonacciProof(fixture.publicValues, fixture.proof);
-        assert(n == fixture.n);
-        assert(a == fixture.a);
-        assert(b == fixture.b);
+        bool result = pdfVerifier.verifyPdfProof(fixture.publicValues, fixture.proof);
+        assertTrue(result == fixture.result);
     }
 
-    function testRevert_InvalidFibonacciProof() public {
+    function testRevert_InvalidPdfProof() public {
         vm.expectRevert();
 
         SP1ProofFixtureJson memory fixture = loadFixture();
 
-        // Create a fake proof.
         bytes memory fakeProof = new bytes(fixture.proof.length);
 
-        fibonacci.verifyFibonacciProof(fixture.publicValues, fakeProof);
+        pdfVerifier.verifyPdfProof(fixture.publicValues, fakeProof);
     }
 }

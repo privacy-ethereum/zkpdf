@@ -1462,45 +1462,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "fibonacci-lib"
-version = "0.1.0"
-dependencies = [
- "alloy-sol-types",
- "sha2",
-]
-
-[[package]]
-name = "fibonacci-program"
-version = "0.1.0"
-dependencies = [
- "alloy-sol-types",
- "core",
- "fibonacci-lib",
- "sp1-zkvm",
-]
-
-[[package]]
-name = "fibonacci-script"
-version = "0.1.0"
-dependencies = [
- "alloy-sol-types",
- "axum",
- "bincode",
- "clap",
- "dotenv",
- "fibonacci-lib",
- "hex",
- "hyper",
- "serde",
- "serde_json",
- "sp1-build",
- "sp1-sdk",
- "tokio",
- "tower-http",
- "tracing",
-]
-
-[[package]]
 name = "fixed-hash"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6029,4 +5990,44 @@ dependencies = [
  "sha2",
  "sha3",
  "subtle",
+]
+
+[[package]]
+name = "zkpdf-lib"
+version = "0.1.0"
+dependencies = [
+ "alloy-sol-types",
+ "sha2",
+]
+
+[[package]]
+name = "zkpdf-program"
+version = "0.1.0"
+dependencies = [
+ "alloy-sol-types",
+ "core",
+ "sp1-zkvm",
+ "zkpdf-lib",
+]
+
+[[package]]
+name = "zkpdf-script"
+version = "0.1.0"
+dependencies = [
+ "alloy-sol-types",
+ "axum",
+ "bincode",
+ "clap",
+ "dotenv",
+ "extractor",
+ "hex",
+ "hyper",
+ "serde",
+ "serde_json",
+ "sp1-build",
+ "sp1-sdk",
+ "tokio",
+ "tower-http",
+ "tracing",
+ "zkpdf-lib",
 ]

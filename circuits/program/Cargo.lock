@@ -545,7 +545,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "fibonacci-program"
+name = "zkpdf-program"
 version = "0.1.0"
 dependencies = [
  "alloy-sol-types",

@@ -1,11 +1,11 @@
 [package]
 version = "0.1.0"
-name = "fibonacci-script"
+name = "zkpdf-script"
 edition = "2021"
-default-run = "fibonacci"
+default-run = "zkpdf"
 
 [[bin]]
-name = "fibonacci"
+name = "zkpdf"
 path = "src/bin/main.rs"
 
 [[bin]]
@@ -28,7 +28,8 @@ clap = { version = "4.0", features = ["derive", "env"] }
 tracing = "0.1.40"
 hex = "0.4.3"
 alloy-sol-types = { workspace = true }
-fibonacci-lib = { path = "../lib" }
+zkpdf-lib = { path = "../lib" }
+extractor = { path = "../../pdf-utils/extractor" }
 dotenv = "0.15.0"
 tokio = { version = "1", features = ["full"] }
 axum = { version = "0.7", features = ["json"] }

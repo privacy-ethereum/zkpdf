@@ -12,11 +12,11 @@
 
 use alloy_sol_types::SolType;
 use clap::Parser;
-use fibonacci_lib::PublicValuesStruct;
 use sp1_sdk::{include_elf, ProverClient, SP1Stdin};
+use zkpdf_lib::PublicValuesStruct;
 
 /// The ELF (executable and linkable format) file for the Succinct RISC-V zkVM.
-pub const FIBONACCI_ELF: &[u8] = include_elf!("fibonacci-program");
+pub const ZKPDF_ELF: &[u8] = include_elf!("zkpdf-program");
 
 /// The arguments for the command.
 #[derive(Parser, Debug)]
@@ -40,8 +40,8 @@ struct Args {
     #[arg(long, default_value = "Sample Signed PDF Document")]
     substring: String,
 
-    #[arg(long)]
-    offset: Option<usize>,
+    #[arg(long, default_value_t = 0)]
+    offset: usize,
 }
 
 fn main() {
@@ -74,8 +74,6 @@ fn main() {
     let page_number: u8 = page;
     let sub_string = substring;
 
-    let offset = offset.unwrap_or(0);
-
     // Setup the inputs.
     let mut stdin = SP1Stdin::new();
     stdin.write(&pdf_bytes);
@@ -90,7 +88,7 @@ fn main() {
 
     if execute {
         // Execute the program
-        let (output, report) = client.execute(FIBONACCI_ELF, &stdin).run().unwrap();
+        let (output, report) = client.execute(ZKPDF_ELF, &stdin).run().unwrap();
         println!("Program executed successfully.");
 
         // Read the output.
@@ -100,7 +98,7 @@ fn main() {
         println!("Number of cycles: {}", report.total_instruction_count());
     } else {
         // Setup the program for proving.
-        let (pk, vk) = client.setup(FIBONACCI_ELF);
+        let (pk, vk) = client.setup(ZKPDF_ELF);
 
         // Generate the proof
         let proof = client

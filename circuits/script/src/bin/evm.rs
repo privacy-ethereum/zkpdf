@@ -12,15 +12,15 @@
 
 use alloy_sol_types::SolType;
 use clap::{Parser, ValueEnum};
-use fibonacci_lib::PublicValuesStruct;
 use serde::{Deserialize, Serialize};
 use sp1_sdk::{
     include_elf, HashableKey, ProverClient, SP1ProofWithPublicValues, SP1Stdin, SP1VerifyingKey,
 };
 use std::path::PathBuf;
+use zkpdf_lib::PublicValuesStruct;
 
 /// The ELF (executable and linkable format) file for the Succinct RISC-V zkVM.
-pub const FIBONACCI_ELF: &[u8] = include_elf!("fibonacci-program");
+pub const ZKPDF_ELF: &[u8] = include_elf!("zkpdf-program");
 
 /// The arguments for the EVM command.
 #[derive(Parser, Debug)]
@@ -55,7 +55,7 @@ enum ProofSystem {
 /// A fixture that can be used to test the verification of SP1 zkVM proofs inside Solidity.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct SP1FibonacciProofFixture {
+struct SP1ZkPdfProofFixture {
     result: bool,
     vkey: String,
     public_values: String,
@@ -83,12 +83,12 @@ fn main() {
         .unwrap_or_else(|_| panic!("Failed to read PDF file at {}", pdf_path));
 
     // Setup the program.
-    let (pk, vk) = client.setup(FIBONACCI_ELF);
+    let (pk, vk) = client.setup(ZKPDF_ELF);
 
     // Setup the inputs.
     let page_number: u8 = page;
     let sub_string = substring;
-    let offset = offset.expect("Offset not provided, please provide an offset using --offset");
+    let offset = offset.expect("Offset must be provided in the request");
 
     let mut stdin = SP1Stdin::new();
     stdin.write(&pdf_bytes);
@@ -123,7 +123,7 @@ fn create_proof_fixture(
     let PublicValuesStruct { result } = PublicValuesStruct::abi_decode(bytes, false).unwrap();
 
     // Create the testing fixture so we can test things end-to-end.
-    let fixture = SP1FibonacciProofFixture {
+    let fixture = SP1ZkPdfProofFixture {
         result,
         vkey: vk.bytes32().to_string(),
         public_values: format!("0x{}", hex::encode(bytes)),
