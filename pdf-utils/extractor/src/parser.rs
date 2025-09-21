@@ -46,7 +46,6 @@ impl<'a> Parser<'a> {
             return Err(PdfError::ParseError("Name must start with '/'"));
         }
         self.pos += 1;
-        let start = self.pos;
         let mut name_bytes = Vec::new();
         while self.pos < self.len {
             let c = self.data[self.pos];
@@ -106,12 +105,10 @@ impl<'a> Parser<'a> {
             self.pos += 1;
         }
         let mut int_value: i64 = 0;
-        let mut int_count = 0;
         while self.pos < self.len && self.data[self.pos].is_ascii_digit() {
             int_value = int_value
                 .saturating_mul(10)
                 .saturating_add((self.data[self.pos] - b'0') as i64);
-            int_count += 1;
             self.pos += 1;
         }
         // Check if we have a fractional part
@@ -206,7 +203,7 @@ impl<'a> Parser<'a> {
                         // octal sequence
                         let mut octal = 0;
                         let mut count = 0;
-                        let mut octal_digit = (next - b'0') as u8;
+                        let octal_digit = (next - b'0') as u8;
                         octal = octal_digit as u32;
                         self.pos += 1;
                         count += 1;
