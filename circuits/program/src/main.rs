@@ -12,8 +12,7 @@ pub fn main() {
     let offset = sp1_zkvm::io::read::<usize>();
     let sub_string = sp1_zkvm::io::read::<String>();
 
-    let is_valid =
-        verify_text(pdf_bytes, page_number, &sub_string, offset).is_ok();
+    let is_valid = verify_text(pdf_bytes, page_number, &sub_string, offset).is_ok();
 
     let bytes = PublicValuesStruct::abi_encode(&PublicValuesStruct { result: is_valid });
 

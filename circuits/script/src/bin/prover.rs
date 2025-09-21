@@ -12,6 +12,7 @@ struct ProofRequest {
     pdf_bytes: Vec<u8>,
     page_number: u8,
     sub_string: String,
+    offset: Option<usize>,
 }
 
 #[derive(Serialize)]
@@ -24,9 +25,14 @@ async fn prove(Json(body): Json<ProofRequest>) -> Json<SP1ProofWithPublicValues>
     let client = ProverClient::from_env();
     let (pk, vk) = client.setup(FIBONACCI_ELF);
 
+    let offset = body
+        .offset
+        .expect("Offset not provided, please provide an offset using --offset");
+
     let mut stdin = SP1Stdin::new();
     stdin.write(&body.pdf_bytes);
     stdin.write(&body.page_number);
+    stdin.write(&offset);
     stdin.write(&body.sub_string);
 
     let proof = client

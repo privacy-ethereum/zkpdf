@@ -33,6 +33,15 @@ struct Args {
         default_value = "../../pdf-utils/sample-pdfs/digitally_signed.pdf"
     )]
     pdf_path: String,
+
+    #[arg(long, default_value_t = 0)]
+    page: u8,
+
+    #[arg(long, default_value = "Sample Signed PDF Document")]
+    substring: String,
+
+    #[arg(long)]
+    offset: Option<usize>,
 }
 
 fn main() {
@@ -41,9 +50,16 @@ fn main() {
     dotenv::dotenv().ok();
 
     // Parse the command line arguments.
-    let args = Args::parse();
+    let Args {
+        execute,
+        prove,
+        pdf_path,
+        page,
+        substring,
+        offset,
+    } = Args::parse();
 
-    if args.execute == args.prove {
+    if execute == prove {
         eprintln!("Error: You must specify either --execute or --prove");
         std::process::exit(1);
     }
@@ -52,21 +68,27 @@ fn main() {
     let client = ProverClient::from_env();
 
     // Load the PDF bytes from the provided path
-    let pdf_bytes = std::fs::read(&args.pdf_path)
-        .unwrap_or_else(|_| panic!("Failed to read PDF file at {}", args.pdf_path));
+    let pdf_bytes = std::fs::read(&pdf_path)
+        .unwrap_or_else(|_| panic!("Failed to read PDF file at {}", pdf_path));
 
-    let name = "Sample Signed PDF Document";
-    let page_number: u8 = 0;
+    let page_number: u8 = page;
+    let sub_string = substring;
+
+    let offset = offset.unwrap_or(0);
 
     // Setup the inputs.
     let mut stdin = SP1Stdin::new();
     stdin.write(&pdf_bytes);
     stdin.write(&page_number);
-    stdin.write(&name.to_string());
+    stdin.write(&offset);
+    stdin.write(&sub_string);
 
-    println!("pdf_path: {}", args.pdf_path);
+    println!("pdf_path: {}", pdf_path);
+    println!("page: {}", page_number);
+    println!("substring: {}", sub_string);
+    println!("offset: {}", offset);
 
-    if args.execute {
+    if execute {
         // Execute the program
         let (output, report) = client.execute(FIBONACCI_ELF, &stdin).run().unwrap();
         println!("Program executed successfully.");

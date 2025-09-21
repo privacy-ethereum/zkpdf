@@ -34,6 +34,15 @@ struct EVMArgs {
 
     #[arg(long, value_enum, default_value = "groth16")]
     system: ProofSystem,
+
+    #[arg(long, default_value_t = 0)]
+    page: u8,
+
+    #[arg(long, default_value = "Sample Signed PDF Document")]
+    substring: String,
+
+    #[arg(long)]
+    offset: Option<usize>,
 }
 
 /// Enum representing the available proof systems
@@ -58,37 +67,49 @@ fn main() {
     sp1_sdk::utils::setup_logger();
 
     // Parse the command line arguments.
-    let args = EVMArgs::parse();
+    let EVMArgs {
+        pdf_path,
+        system,
+        page,
+        substring,
+        offset,
+    } = EVMArgs::parse();
 
     // Setup the prover client.
     let client = ProverClient::from_env();
 
     // Load the PDF bytes from the provided path
-    let pdf_bytes = std::fs::read(&args.pdf_path)
-        .unwrap_or_else(|_| panic!("Failed to read PDF file at {}", args.pdf_path));
+    let pdf_bytes = std::fs::read(&pdf_path)
+        .unwrap_or_else(|_| panic!("Failed to read PDF file at {}", pdf_path));
 
     // Setup the program.
     let (pk, vk) = client.setup(FIBONACCI_ELF);
 
     // Setup the inputs.
-    let name = "Sample Signed PDF Document";
-    let page_number: u8 = 0;
+    let page_number: u8 = page;
+    let sub_string = substring;
+    let offset = offset.expect("Offset not provided, please provide an offset using --offset");
+
     let mut stdin = SP1Stdin::new();
     stdin.write(&pdf_bytes);
     stdin.write(&page_number);
-    stdin.write(&name.to_string());
+    stdin.write(&offset);
+    stdin.write(&sub_string);
 
-    println!("pdf_path: {}", args.pdf_path);
-    println!("Proof System: {:?}", args.system);
+    println!("pdf_path: {}", pdf_path);
+    println!("page: {}", page_number);
+    println!("substring: {}", sub_string);
+    println!("offset: {}", offset);
+    println!("Proof System: {:?}", system);
 
     // Generate the proof based on the selected proof system.
-    let proof = match args.system {
+    let proof = match system {
         ProofSystem::Plonk => client.prove(&pk, &stdin).plonk().run(),
         ProofSystem::Groth16 => client.prove(&pk, &stdin).groth16().run(),
     }
     .expect("failed to generate proof");
 
-    create_proof_fixture(&proof, &vk, args.system);
+    create_proof_fixture(&proof, &vk, system);
 }
 
 /// Create a fixture for the given proof.
