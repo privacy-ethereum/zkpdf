@@ -41,8 +41,8 @@ struct EVMArgs {
     #[arg(long, default_value = "Sample Signed PDF Document")]
     substring: String,
 
-    #[arg(long)]
-    offset: Option<usize>,
+    #[arg(long, default_value_t = 0)]
+    offset: usize,
 }
 
 /// Enum representing the available proof systems
@@ -92,7 +92,6 @@ fn main() {
     // Setup the inputs.
     let page_number: u8 = page;
     let sub_string = substring;
-    let offset = offset.expect("Offset must be provided in the request");
 
     println!("pdf_path: {}", pdf_path);
     println!("page: {}", page_number);
