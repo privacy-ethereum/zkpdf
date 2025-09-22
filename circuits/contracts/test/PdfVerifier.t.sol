@@ -7,7 +7,7 @@ import {PdfVerifier} from "../src/PdfVerifier.sol";
 import {SP1VerifierGateway} from "@sp1-contracts/SP1VerifierGateway.sol";
 
 struct SP1ProofFixtureJson {
-    bool result;
+    bool substringMatches;
     bytes proof;
     bytes publicValues;
     bytes32 vkey;
@@ -39,8 +39,13 @@ contract PdfVerifierGroth16Test is Test {
 
         vm.mockCall(verifier, abi.encodeWithSelector(SP1VerifierGateway.verifyProof.selector), abi.encode(true));
 
-        bool result = pdfVerifier.verifyPdfProof(fixture.publicValues, fixture.proof);
-        assertTrue(result == fixture.result);
+        PublicValuesStruct memory expected = abi.decode(fixture.publicValues, (PublicValuesStruct));
+        PublicValuesStruct memory publicValues = pdfVerifier.verifyPdfProof(fixture.publicValues, fixture.proof);
+        assertTrue(publicValues.substringMatches == fixture.substringMatches);
+        assertEq(publicValues.messageDigestHash, expected.messageDigestHash);
+        assertEq(publicValues.signerKeyHash, expected.signerKeyHash);
+        assertEq(publicValues.substringHash, expected.substringHash);
+        assertEq(publicValues.nullifier, expected.nullifier);
     }
 
     function testRevert_InvalidPdfProof() public {
@@ -80,8 +85,13 @@ contract PdfVerifierPlonkTest is Test {
 
         vm.mockCall(verifier, abi.encodeWithSelector(SP1VerifierGateway.verifyProof.selector), abi.encode(true));
 
-        bool result = pdfVerifier.verifyPdfProof(fixture.publicValues, fixture.proof);
-        assertTrue(result == fixture.result);
+        PublicValuesStruct memory expected = abi.decode(fixture.publicValues, (PublicValuesStruct));
+        PublicValuesStruct memory publicValues = pdfVerifier.verifyPdfProof(fixture.publicValues, fixture.proof);
+        assertTrue(publicValues.substringMatches == fixture.substringMatches);
+        assertEq(publicValues.messageDigestHash, expected.messageDigestHash);
+        assertEq(publicValues.signerKeyHash, expected.signerKeyHash);
+        assertEq(publicValues.substringHash, expected.substringHash);
+        assertEq(publicValues.nullifier, expected.nullifier);
     }
 
     function testRevert_InvalidPdfProof() public {

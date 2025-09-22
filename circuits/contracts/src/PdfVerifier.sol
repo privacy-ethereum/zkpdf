@@ -24,13 +24,19 @@ contract PdfVerifier {
     /// @notice Verifies a zkPDF proof and returns the attested result flag.
     /// @param _publicValues ABI-encoded public values emitted by the zkPDF program.
     /// @param _proofBytes Encoded SP1 proof bytes.
-    function verifyPdfProof(bytes calldata _publicValues, bytes calldata _proofBytes)
-        public
-        view
-        returns (bool)
-    {
-        ISP1Verifier(verifier).verifyProof(programVKey, _publicValues, _proofBytes);
-        PublicValuesStruct memory publicValues = abi.decode(_publicValues, (PublicValuesStruct));
+    function verifyPdfProof(
+        bytes calldata _publicValues,
+        bytes calldata _proofBytes
+    ) public view returns (bool) {
+        ISP1Verifier(verifier).verifyProof(
+            programVKey,
+            _publicValues,
+            _proofBytes
+        );
+        PublicValuesStruct memory publicValues = abi.decode(
+            _publicValues,
+            (PublicValuesStruct)
+        );
         return publicValues.result;
     }
 }
