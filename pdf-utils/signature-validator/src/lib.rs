@@ -86,26 +86,35 @@ pub fn verify_pdf_signature(pdf_bytes: &[u8]) -> SignatureResult<PdfSignatureRes
     let calculated_signed_data_hash =
         calculate_signed_data_hash(&signed_data, &verifier_params.algorithm)?;
 
-    if verifier_params.signed_data_message_digest != calculated_signed_data_hash {
-        return Err(SignatureValidationError::MessageDigestMismatch {
-            expected: verifier_params.signed_data_message_digest.clone(),
-            calculated: calculated_signed_data_hash,
-        });
+    if let Some(expected) = &verifier_params.signed_data_message_digest {
+        if expected != &calculated_signed_data_hash {
+            return Err(SignatureValidationError::MessageDigestMismatch {
+                expected: expected.clone(),
+                calculated: calculated_signed_data_hash,
+            });
+        }
     }
 
     // CHECK 2: Verify RSA signature
     let pub_key = create_rsa_public_key(&verifier_params)?;
     let padding = get_pkcs1v15_padding(&verifier_params.algorithm)?;
+    let digest_for_signature = verifier_params
+        .signed_attr_digest
+        .clone()
+        .unwrap_or_else(|| calculated_signed_data_hash.clone());
     let is_verified = verify_rsa_signature(
         &pub_key,
         padding,
-        &verifier_params.signed_attr_digest,
+        &digest_for_signature,
         &verifier_params.signature,
     )?;
 
     Ok(PdfSignatureResult {
         is_valid: is_verified,
-        message_digest: verifier_params.signed_data_message_digest,
+        message_digest: verifier_params
+            .signed_data_message_digest
+            .clone()
+            .unwrap_or(calculated_signed_data_hash),
         public_key: pub_key
             .to_pkcs1_der()
             .expect("Failed to encode public key")
@@ -120,11 +129,19 @@ mod tests {
 
     // PUBLIC PDF
     static SAMPLE_PDF_BYTES: &[u8] = include_bytes!("../../sample-pdfs/digitally_signed.pdf");
-
     #[test]
     fn test_sha1_pdf() {
         let res = verify_pdf_signature(SAMPLE_PDF_BYTES);
         assert!(matches!(res, Ok(PdfSignatureResult { is_valid: true, .. })));
+    }
+
+    #[test]
+    fn test_gst_template_pdf() {
+        let pdf_bytes: &[u8] = include_bytes!("../../sample-pdfs/GST-certificate.pdf");
+        let res = verify_pdf_signature(&pdf_bytes)
+            .expect("GST certificate signature verification failed");
+
+        assert!(res.is_valid, "GST certificate signature reported invalid");
     }
 
     #[cfg(feature = "private_tests")]

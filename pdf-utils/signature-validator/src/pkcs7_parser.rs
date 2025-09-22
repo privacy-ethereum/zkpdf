@@ -1,5 +1,6 @@
 use num_bigint::BigUint;
 use num_traits::FromPrimitive;
+use sha1::Sha1;
 use sha2::{Digest, Sha256, Sha384, Sha512};
 use simple_asn1::{from_der, oid, ASN1Block, ASN1Class};
 
@@ -9,9 +10,9 @@ pub struct VerifierParams {
     pub modulus: Vec<u8>,
     pub exponent: BigUint,
     pub signature: Vec<u8>,
-    pub signed_attr_digest: Vec<u8>,
+    pub signed_attr_digest: Option<Vec<u8>>,
     pub algorithm: SignatureAlgorithm,
-    pub signed_data_message_digest: Vec<u8>,
+    pub signed_data_message_digest: Option<Vec<u8>>,
 }
 
 pub fn parse_signed_data(der_bytes: &[u8]) -> Pkcs7Result<VerifierParams> {
@@ -37,20 +38,57 @@ pub fn parse_signed_data(der_bytes: &[u8]) -> Pkcs7Result<VerifierParams> {
 struct SignatureData {
     signature: Vec<u8>,
     signer_serial: BigUint,
-    digest_bytes: Vec<u8>,
+    digest_bytes: Option<Vec<u8>>,
     signed_algo: SignatureAlgorithm,
-    expected_message_digest: Vec<u8>,
+    expected_message_digest: Option<Vec<u8>>,
 }
 
 fn get_signature_data(signed_data_seq: Vec<ASN1Block>) -> Pkcs7Result<SignatureData> {
     let signer_info_items = extract_signer_info(&signed_data_seq)?;
     let (signer_serial, digest_oid) = extract_issuer_and_digest_algorithm(signer_info_items)?;
     let signed_attrs_der = extract_signed_attributes_der(signer_info_items)?;
-    let (digest_bytes, signed_algo) =
-        compute_signed_attributes_digest(&signed_attrs_der, &digest_oid)?;
-    let signed_attrs = from_der(&signed_attrs_der)?;
-    let expected_message_digest = extract_message_digest(&signed_attrs)?;
-    let signature = extract_signature(signer_info_items, &digest_bytes)?;
+    let has_signed_attrs = signed_attrs_der.is_some();
+    let embedded_digest = extract_signed_content_digest(&signed_data_seq)?;
+    let (digest_bytes, signed_algo, expected_message_digest) = match signed_attrs_der.as_ref() {
+        Some(der) => {
+            let (digest, algo) = compute_signed_attributes_digest(der, &digest_oid)?;
+            let signed_attrs = from_der(der)?;
+            let message_digest = extract_message_digest(&signed_attrs)?;
+            (Some(digest), algo, Some(message_digest))
+        }
+        None => {
+            let digest = embedded_digest
+                .clone()
+                .ok_or_else(|| Pkcs7Error::structure("Signed content digest missing"))?;
+            let algo = digest_algorithm_from_oid(&digest_oid)?;
+            let signed_digest = match algo {
+                SignatureAlgorithm::Sha1WithRsaEncryption => {
+                    let mut hasher = Sha1::new();
+                    hasher.update(&digest);
+                    hasher.finalize().to_vec()
+                }
+                SignatureAlgorithm::Sha256WithRsaEncryption => {
+                    let mut hasher = Sha256::new();
+                    hasher.update(&digest);
+                    hasher.finalize().to_vec()
+                }
+                SignatureAlgorithm::Sha384WithRsaEncryption => {
+                    let mut hasher = Sha384::new();
+                    hasher.update(&digest);
+                    hasher.finalize().to_vec()
+                }
+                SignatureAlgorithm::Sha512WithRsaEncryption => {
+                    let mut hasher = Sha512::new();
+                    hasher.update(&digest);
+                    hasher.finalize().to_vec()
+                }
+                _ => return Err(Pkcs7Error::UnsupportedDigestOid(digest_oid.clone())),
+            };
+
+            (Some(signed_digest), algo, Some(digest))
+        }
+    };
+    let signature = extract_signature(signer_info_items, has_signed_attrs)?;
 
     Ok(SignatureData {
         signature,
@@ -116,7 +154,7 @@ fn extract_issuer_and_digest_algorithm(
     Ok((signer_serial, digest_oid))
 }
 
-fn extract_signed_attributes_der(signer_info: &Vec<ASN1Block>) -> Pkcs7Result<Vec<u8>> {
+fn extract_signed_attributes_der(signer_info: &Vec<ASN1Block>) -> Pkcs7Result<Option<Vec<u8>>> {
     for block in signer_info {
         if let ASN1Block::Unknown(ASN1Class::ContextSpecific, true, _len, tag_no, content) = block {
             if tag_no == &BigUint::from(0u8) {
@@ -136,56 +174,47 @@ fn extract_signed_attributes_der(signer_info: &Vec<ASN1Block>) -> Pkcs7Result<Ve
                 }
 
                 out.extend_from_slice(content);
-                return Ok(out);
+                return Ok(Some(out));
             }
         }
     }
-    Err(Pkcs7Error::structure("signedAttrs [0] not found"))
+    Ok(None)
 }
 
 fn compute_signed_attributes_digest(
     signed_attrs_der: &[u8],
     digest_oid: &simple_asn1::OID,
 ) -> Pkcs7Result<(Vec<u8>, SignatureAlgorithm)> {
-    match digest_oid {
-        oid if oid == oid!(2, 16, 840, 1, 101, 3, 4, 2, 1) => {
-            let mut h = Sha256::new();
-            h.update(signed_attrs_der);
-            Ok((
-                h.finalize().to_vec(),
-                SignatureAlgorithm::Sha256WithRsaEncryption,
-            ))
+    let algorithm = digest_algorithm_from_oid(digest_oid)?;
+    let digest = match algorithm {
+        SignatureAlgorithm::Sha1WithRsaEncryption => {
+            let mut hasher = Sha1::new();
+            hasher.update(signed_attrs_der);
+            hasher.finalize().to_vec()
         }
-        oid if oid == oid!(2, 16, 840, 1, 101, 3, 4, 2, 2) => {
-            let mut h = Sha384::new();
-            h.update(signed_attrs_der);
-            Ok((
-                h.finalize().to_vec(),
-                SignatureAlgorithm::Sha384WithRsaEncryption,
-            ))
+        SignatureAlgorithm::Sha256WithRsaEncryption => {
+            let mut hasher = Sha256::new();
+            hasher.update(signed_attrs_der);
+            hasher.finalize().to_vec()
         }
-        oid if oid == oid!(2, 16, 840, 1, 101, 3, 4, 2, 3) => {
-            let mut h = Sha512::new();
-            h.update(signed_attrs_der);
-            Ok((
-                h.finalize().to_vec(),
-                SignatureAlgorithm::Sha512WithRsaEncryption,
-            ))
+        SignatureAlgorithm::Sha384WithRsaEncryption => {
+            let mut hasher = Sha384::new();
+            hasher.update(signed_attrs_der);
+            hasher.finalize().to_vec()
         }
-        oid if oid == oid!(1, 3, 14, 3, 2, 26) => {
-            let mut h = sha1::Sha1::new();
-            h.update(signed_attrs_der);
-            Ok((
-                h.finalize().to_vec(),
-                SignatureAlgorithm::Sha1WithRsaEncryption,
-            ))
+        SignatureAlgorithm::Sha512WithRsaEncryption => {
+            let mut hasher = Sha512::new();
+            hasher.update(signed_attrs_der);
+            hasher.finalize().to_vec()
         }
-        other => Err(Pkcs7Error::UnsupportedDigestOid(other.clone())),
-    }
+        _ => return Err(Pkcs7Error::UnsupportedDigestOid(digest_oid.clone())),
+    };
+
+    Ok((digest, algorithm))
 }
 
-fn extract_signature(signer_info: &Vec<ASN1Block>, digest_bytes: &Vec<u8>) -> Pkcs7Result<Vec<u8>> {
-    let sig_index = if digest_bytes.is_empty() { 4 } else { 5 };
+fn extract_signature(signer_info: &Vec<ASN1Block>, has_signed_attrs: bool) -> Pkcs7Result<Vec<u8>> {
+    let sig_index = if has_signed_attrs { 5 } else { 4 };
     if let Some(ASN1Block::OctetString(_, s)) = signer_info.get(sig_index) {
         Ok(s.clone())
     } else {
@@ -193,6 +222,52 @@ fn extract_signature(signer_info: &Vec<ASN1Block>, digest_bytes: &Vec<u8>) -> Pk
             "EncryptedDigest (signature) not found",
         ))
     }
+}
+
+fn digest_algorithm_from_oid(digest_oid: &simple_asn1::OID) -> Pkcs7Result<SignatureAlgorithm> {
+    if digest_oid == &oid!(1, 3, 14, 3, 2, 26) {
+        Ok(SignatureAlgorithm::Sha1WithRsaEncryption)
+    } else if digest_oid == &oid!(2, 16, 840, 1, 101, 3, 4, 2, 1) {
+        Ok(SignatureAlgorithm::Sha256WithRsaEncryption)
+    } else if digest_oid == &oid!(2, 16, 840, 1, 101, 3, 4, 2, 2) {
+        Ok(SignatureAlgorithm::Sha384WithRsaEncryption)
+    } else if digest_oid == &oid!(2, 16, 840, 1, 101, 3, 4, 2, 3) {
+        Ok(SignatureAlgorithm::Sha512WithRsaEncryption)
+    } else {
+        Err(Pkcs7Error::UnsupportedDigestOid(digest_oid.clone()))
+    }
+}
+
+fn extract_signed_content_digest(signed_data_seq: &Vec<ASN1Block>) -> Pkcs7Result<Option<Vec<u8>>> {
+    for block in signed_data_seq {
+        if let ASN1Block::Sequence(_, items) = block {
+            if let Some(ASN1Block::ObjectIdentifier(_, oid_val)) = items.get(0) {
+                if *oid_val == oid!(1, 2, 840, 113549, 1, 7, 1) {
+                    if let Some(content_block) = items.get(1) {
+                        match content_block {
+                            ASN1Block::Explicit(ASN1Class::ContextSpecific, _, _, inner) => {
+                                if let ASN1Block::OctetString(_, bytes) = inner.as_ref() {
+                                    return Ok(Some(bytes.clone()));
+                                }
+                            }
+                            ASN1Block::Unknown(ASN1Class::ContextSpecific, _, _, _, data) => {
+                                let parsed = from_der(data).map_err(Pkcs7Error::Der)?;
+                                if let Some(ASN1Block::OctetString(_, bytes)) = parsed.get(0) {
+                                    return Ok(Some(bytes.clone()));
+                                }
+                            }
+                            ASN1Block::OctetString(_, bytes) => {
+                                return Ok(Some(bytes.clone()));
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(None)
 }
 
 fn extract_content_info(blocks: &[ASN1Block]) -> Pkcs7Result<&[ASN1Block]> {

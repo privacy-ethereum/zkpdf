@@ -1007,6 +1007,23 @@ mod extractor_tests {
             Err(e) => panic!("Failed to extract PDF text: {:?}", e),
         }
     }
+
+    #[test]
+    fn extract_gst_template_pdf() {
+        let pdf_data = include_bytes!("../../sample-pdfs/GST-certificate.pdf").to_vec();
+
+        match super::extract_text(pdf_data) {
+            Ok(text_per_page) => {
+                assert!(text_per_page.len() == 3, "Expected at least 3 pages");
+                assert!(!text_per_page.is_empty(), "No text extracted from PDF");
+                assert!(
+                    text_per_page[0].contains("Goods and Services Tax"),
+                    "Expected text not found in the first page"
+                );
+            }
+            Err(e) => panic!("Failed to extract PDF text: {:?}", e),
+        }
+    }
 }
 
 #[cfg(feature = "private_tests")]

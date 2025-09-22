@@ -60,26 +60,71 @@ fn extract_signed_data(pdf_bytes: &[u8], byte_range: &ByteRange) -> Vec<u8> {
 }
 
 fn extract_signature_hex(pdf_bytes: &[u8], byte_range_pos: usize) -> SignedBytesResult<String> {
-    let contents_pos = pdf_bytes[byte_range_pos..]
-        .windows(b"/Contents".len())
-        .position(|w| w == b"/Contents")
-        .ok_or(SignedBytesError::ContentsNotFound)?
-        + byte_range_pos;
-    let hex_start = pdf_bytes[contents_pos..]
-        .iter()
-        .position(|&b| b == b'<')
-        .ok_or(SignedBytesError::ContentsStartMissing)?
-        + contents_pos
-        + 1;
+    const KEY: &[u8] = b"/Contents";
+    let mut contents_pos = None;
+    let mut cursor_pos = 0;
+
+    let mut search_index = byte_range_pos;
+    while search_index < pdf_bytes.len() {
+        let slice = &pdf_bytes[search_index..];
+        if let Some(offset) = slice.windows(KEY.len()).position(|w| w == KEY) {
+            let pos = search_index + offset;
+            let mut cursor = pos + KEY.len();
+            while cursor < pdf_bytes.len() && pdf_bytes[cursor].is_ascii_whitespace() {
+                cursor += 1;
+            }
+            if cursor < pdf_bytes.len() && pdf_bytes[cursor] == b'<' {
+                contents_pos = Some(pos);
+                cursor_pos = cursor;
+                break;
+            }
+            search_index = pos + 1;
+        } else {
+            break;
+        }
+    }
+
+    if contents_pos.is_none() {
+        let mut search_end = byte_range_pos;
+        while search_end > 0 {
+            let slice = &pdf_bytes[..search_end];
+            if let Some(pos) = slice.windows(KEY.len()).rposition(|w| w == KEY) {
+                let mut cursor = pos + KEY.len();
+                while cursor < pdf_bytes.len() && pdf_bytes[cursor].is_ascii_whitespace() {
+                    cursor += 1;
+                }
+                if cursor < pdf_bytes.len() && pdf_bytes[cursor] == b'<' {
+                    contents_pos = Some(pos);
+                    cursor_pos = cursor;
+                    break;
+                }
+                search_end = pos;
+            } else {
+                break;
+            }
+        }
+    }
+
+    if contents_pos.is_none() {
+        return Err(SignedBytesError::ContentsNotFound);
+    }
+
+    if cursor_pos >= pdf_bytes.len() || pdf_bytes[cursor_pos] != b'<' {
+        return Err(SignedBytesError::ContentsStartMissing);
+    }
+
+    let hex_start = cursor_pos + 1;
     let hex_end = pdf_bytes[hex_start..]
         .iter()
         .position(|&b| b == b'>')
         .ok_or(SignedBytesError::ContentsEndMissing)?
         + hex_start;
 
-    str::from_utf8(&pdf_bytes[hex_start..hex_end])
-        .map_err(|_| SignedBytesError::InvalidContentsUtf8)
-        .map(|s| s.to_string())
+    let hex_slice = &pdf_bytes[hex_start..hex_end];
+    let hex_str = str::from_utf8(hex_slice).map_err(|_| SignedBytesError::InvalidContentsUtf8)?;
+    let cleaned: String = hex_str.split_whitespace().collect();
+
+    Ok(cleaned)
 }
 
 fn decode_signature_hex(hex_str: &str) -> SignedBytesResult<Vec<u8>> {
