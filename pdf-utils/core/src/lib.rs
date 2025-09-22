@@ -1,5 +1,5 @@
-use extractor::extract_text;
-use signature_validator::verify_pdf_signature;
+pub use extractor::extract_text;
+pub use signature_validator::verify_pdf_signature;
 
 /// Verifies a PDF's digital signature and checks that `sub_string` appears at `offset` on
 /// `page_number`. Returns `Ok(true)` when the substring matches at the given position,
