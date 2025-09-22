@@ -2,17 +2,16 @@
 sp1_zkvm::entrypoint!(main);
 
 use alloy_sol_types::SolType;
-use zkpdf_lib::{verify_text, PublicValuesStruct};
+use zkpdf_lib::{
+    types::{PDFCircuitInput, PDFCircuitOutput},
+    verify_pdf_claim, PublicValuesStruct,
+};
 
 pub fn main() {
-    let pdf_bytes = sp1_zkvm::io::read::<Vec<u8>>();
-    let page_number = sp1_zkvm::io::read::<u8>();
-    let offset = sp1_zkvm::io::read::<usize>();
-    let sub_string = sp1_zkvm::io::read::<String>();
-
-    let is_valid = verify_text(pdf_bytes, page_number, &sub_string, offset).is_ok();
-
-    let bytes = PublicValuesStruct::abi_encode(&PublicValuesStruct { result: is_valid });
+    let input = sp1_zkvm::io::read::<PDFCircuitInput>();
+    let output = verify_pdf_claim(input).unwrap_or_else(|_| PDFCircuitOutput::failure());
+    let public_values: PublicValuesStruct = output.into();
+    let bytes = PublicValuesStruct::abi_encode(&public_values);
 
     // Commit to the public values of the program. The final proof will have a commitment to all the
     // bytes that were committed to.

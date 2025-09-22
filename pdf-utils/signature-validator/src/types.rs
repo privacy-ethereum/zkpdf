@@ -70,7 +70,10 @@ pub enum SignatureValidationError {
     #[error("Unsupported signature algorithm for hash calculation: {0:?}")]
     UnsupportedAlgorithm(SignatureAlgorithm),
     #[error("Message digest mismatch")]
-    MessageDigestMismatch { expected: Vec<u8>, calculated: Vec<u8> },
+    MessageDigestMismatch {
+        expected: Vec<u8>,
+        calculated: Vec<u8>,
+    },
     #[error("Failed to construct RSA public key: {0}")]
     InvalidPublicKey(String),
     #[error("RSA signature verification error: {0}")]
@@ -78,3 +81,16 @@ pub enum SignatureValidationError {
 }
 
 pub type SignatureResult<T> = Result<T, SignatureValidationError>;
+
+/// Metadata returned after verifying a PDF signature.
+///
+/// `is_valid` indicates whether the signature check succeeded.
+/// `message_digest` is the hash that the signer committed to in the PDF (length determined by the
+/// signature algorithm).
+/// `public_key` of pdf signer's certificate in DER format.
+#[derive(Debug, Clone)]
+pub struct PdfSignatureResult {
+    pub is_valid: bool,
+    pub message_digest: Vec<u8>,
+    pub public_key: Vec<u8>,
+}

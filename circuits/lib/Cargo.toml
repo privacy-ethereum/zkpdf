@@ -6,8 +6,8 @@ edition = "2021"
 [dependencies]
 alloy-sol-types = { workspace = true }
 sha2 = { version = "0.10", default-features = false }
-zkpdf_core = { path = "../../pdf-utils/core", package = "core" }
-
-
-[patch.crates-io]
-sha2-v0-10-8 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", package = "sha2", branch = "patch-v0.10.8" }
+alloy-primitives = "0.8"
+serde = { version = "1", features = ["derive"] }
+signature-validator = { path = "../../pdf-utils/signature-validator" }
+extractor = { path = "../../pdf-utils/extractor" }
+pdf_core = { package = "core", path = "../../pdf-utils/core" }

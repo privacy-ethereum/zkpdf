@@ -4,6 +4,7 @@ use sp1_sdk::{include_elf, ProverClient, SP1ProofWithPublicValues, SP1Stdin};
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
+use zkpdf_lib::types::PDFCircuitInput;
 
 pub const ZKPDF_ELF: &[u8] = include_elf!("zkpdf-program");
 
@@ -25,13 +26,25 @@ async fn prove(Json(body): Json<ProofRequest>) -> Json<SP1ProofWithPublicValues>
     let client = ProverClient::from_env();
     let (pk, _vk) = client.setup(ZKPDF_ELF);
 
-    let offset = body.offset.expect("Offset must be provided in the request");
+    let ProofRequest {
+        pdf_bytes,
+        page_number,
+        sub_string,
+        offset,
+    } = body;
+
+    let offset = offset.expect("Offset must be provided in the request");
+    let offset_u32 = u32::try_from(offset).expect("offset does not fit in u32");
+
+    let proof_input = PDFCircuitInput {
+        pdf_bytes,
+        page_number,
+        offset: offset_u32,
+        substring: sub_string,
+    };
 
     let mut stdin = SP1Stdin::new();
-    stdin.write(&body.pdf_bytes);
-    stdin.write(&body.page_number);
-    stdin.write(&offset);
-    stdin.write(&body.sub_string);
+    stdin.write(&proof_input);
 
     let proof = client
         .prove(&pk, &stdin)

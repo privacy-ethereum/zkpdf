@@ -3,11 +3,13 @@ pub mod signed_bytes_extractor;
 pub mod types;
 
 use pkcs7_parser::{parse_signed_data, VerifierParams};
-use rsa::{errors::Error as RsaError, Pkcs1v15Sign, RsaPublicKey};
+use rsa::{errors::Error as RsaError, pkcs1::EncodeRsaPublicKey, Pkcs1v15Sign, RsaPublicKey};
 use sha1::Sha1;
 use sha2::{Digest, Sha256, Sha384, Sha512};
 use signed_bytes_extractor::get_signature_der;
 use types::{SignatureAlgorithm, SignatureResult, SignatureValidationError};
+
+use crate::types::PdfSignatureResult;
 
 fn calculate_signed_data_hash(
     signed_data: &[u8],
@@ -75,7 +77,7 @@ fn verify_rsa_signature(
     }
 }
 
-pub fn verify_pdf_signature(pdf_bytes: &[u8]) -> SignatureResult<bool> {
+pub fn verify_pdf_signature(pdf_bytes: &[u8]) -> SignatureResult<PdfSignatureResult> {
     let (signature_der, signed_data) = get_signature_der(pdf_bytes)?;
 
     let verifier_params = parse_signed_data(&signature_der)?;
@@ -101,7 +103,15 @@ pub fn verify_pdf_signature(pdf_bytes: &[u8]) -> SignatureResult<bool> {
         &verifier_params.signature,
     )?;
 
-    Ok(is_verified)
+    Ok(PdfSignatureResult {
+        is_valid: is_verified,
+        message_digest: verifier_params.signed_data_message_digest,
+        public_key: pub_key
+            .to_pkcs1_der()
+            .expect("Failed to encode public key")
+            .as_bytes()
+            .to_vec(),
+    })
 }
 
 #[cfg(test)]
@@ -114,7 +124,7 @@ mod tests {
     #[test]
     fn test_sha1_pdf() {
         let res = verify_pdf_signature(SAMPLE_PDF_BYTES);
-        assert!(matches!(res, Ok(true)));
+        assert!(matches!(res, Ok(PdfSignatureResult { is_valid: true, .. })));
     }
 
     #[cfg(feature = "private_tests")]
@@ -130,21 +140,21 @@ mod tests {
         fn sig_check_bank_pdf() {
             let pdf_bytes: &[u8] = include_bytes!("../../samples-private/bank-cert.pdf");
             let res = verify_pdf_signature(&pdf_bytes);
-            assert!(matches!(res, Ok(true)));
+            assert!(matches!(res, Ok(PdfSignatureResult { is_valid: true, .. })));
         }
 
         #[test]
         fn sign_check_pan_pdf() {
             let pdf_bytes: &[u8] = include_bytes!("../../samples-private/pan-cert.pdf");
             let res = verify_pdf_signature(&pdf_bytes);
-            assert!(matches!(res, Ok(true)));
+            assert!(matches!(res, Ok(PdfSignatureResult { is_valid: true, .. })));
         }
 
         #[test]
         fn sig_check_tenth_class_pdf() {
             let pdf_bytes: &[u8] = include_bytes!("../../samples-private/tenth_class.pdf");
             let res = verify_pdf_signature(&pdf_bytes);
-            assert!(matches!(res, Ok(true)));
+            assert!(matches!(res, Ok(PdfSignatureResult { is_valid: true, .. })));
         }
     }
 }

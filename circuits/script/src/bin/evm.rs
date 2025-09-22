@@ -17,7 +17,7 @@ use sp1_sdk::{
     include_elf, HashableKey, ProverClient, SP1ProofWithPublicValues, SP1Stdin, SP1VerifyingKey,
 };
 use std::path::PathBuf;
-use zkpdf_lib::PublicValuesStruct;
+use zkpdf_lib::{types::PDFCircuitInput, PublicValuesStruct};
 
 /// The ELF (executable and linkable format) file for the Succinct RISC-V zkVM.
 pub const ZKPDF_ELF: &[u8] = include_elf!("zkpdf-program");
@@ -56,7 +56,11 @@ enum ProofSystem {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct SP1ZkPdfProofFixture {
-    result: bool,
+    substring_matches: bool,
+    message_digest_hash: String,
+    signer_key_hash: String,
+    substring_hash: String,
+    nullifier: String,
     vkey: String,
     public_values: String,
     proof: String,
@@ -90,17 +94,22 @@ fn main() {
     let sub_string = substring;
     let offset = offset.expect("Offset must be provided in the request");
 
-    let mut stdin = SP1Stdin::new();
-    stdin.write(&pdf_bytes);
-    stdin.write(&page_number);
-    stdin.write(&offset);
-    stdin.write(&sub_string);
-
     println!("pdf_path: {}", pdf_path);
     println!("page: {}", page_number);
     println!("substring: {}", sub_string);
     println!("offset: {}", offset);
     println!("Proof System: {:?}", system);
+
+    let offset_u32 = u32::try_from(offset).expect("offset does not fit in u32");
+    let proof_input = PDFCircuitInput {
+        pdf_bytes,
+        page_number,
+        offset: offset_u32,
+        substring: sub_string,
+    };
+
+    let mut stdin = SP1Stdin::new();
+    stdin.write(&proof_input);
 
     // Generate the proof based on the selected proof system.
     let proof = match system {
@@ -120,11 +129,15 @@ fn create_proof_fixture(
 ) {
     // Deserialize the public values.
     let bytes = proof.public_values.as_slice();
-    let PublicValuesStruct { result } = PublicValuesStruct::abi_decode(bytes, false).unwrap();
+    let decoded = PublicValuesStruct::abi_decode(bytes, false).unwrap();
 
     // Create the testing fixture so we can test things end-to-end.
     let fixture = SP1ZkPdfProofFixture {
-        result,
+        substring_matches: decoded.substringMatches,
+        message_digest_hash: format!("0x{}", hex::encode(decoded.messageDigestHash.as_slice())),
+        signer_key_hash: format!("0x{}", hex::encode(decoded.signerKeyHash.as_slice())),
+        substring_hash: format!("0x{}", hex::encode(decoded.substringHash.as_slice())),
+        nullifier: format!("0x{}", hex::encode(decoded.nullifier.as_slice())),
         vkey: vk.bytes32().to_string(),
         public_values: format!("0x{}", hex::encode(bytes)),
         proof: format!("0x{}", hex::encode(proof.bytes())),
@@ -133,12 +146,15 @@ fn create_proof_fixture(
     // The verification key is used to verify that the proof corresponds to the execution of the
     // program on the given input.
     println!("Verification Key: {}", fixture.vkey);
-
-    // The public values are the values which are publicly committed to by the zkVM.
+    println!(
+        "Substring matches: {}\nmessageDigestHash: {}\nsignerKeyHash: {}\nsubstringHash: {}\nnullifier: {}",
+        fixture.substring_matches,
+        fixture.message_digest_hash,
+        fixture.signer_key_hash,
+        fixture.substring_hash,
+        fixture.nullifier
+    );
     println!("Public Values: {}", fixture.public_values);
-
-    // The proof proves to the verifier that the program was executed with some inputs that led to
-    // the given public values.
     println!("Proof Bytes: {}", fixture.proof);
 
     // Save the fixture to a file.

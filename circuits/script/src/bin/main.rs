@@ -13,7 +13,7 @@
 use alloy_sol_types::SolType;
 use clap::Parser;
 use sp1_sdk::{include_elf, ProverClient, SP1Stdin};
-use zkpdf_lib::PublicValuesStruct;
+use zkpdf_lib::{types::PDFCircuitInput, PublicValuesStruct};
 
 /// The ELF (executable and linkable format) file for the Succinct RISC-V zkVM.
 pub const ZKPDF_ELF: &[u8] = include_elf!("zkpdf-program");
@@ -74,17 +74,22 @@ fn main() {
     let page_number: u8 = page;
     let sub_string = substring;
 
-    // Setup the inputs.
-    let mut stdin = SP1Stdin::new();
-    stdin.write(&pdf_bytes);
-    stdin.write(&page_number);
-    stdin.write(&offset);
-    stdin.write(&sub_string);
-
     println!("pdf_path: {}", pdf_path);
     println!("page: {}", page_number);
     println!("substring: {}", sub_string);
     println!("offset: {}", offset);
+
+    let offset_u32 = u32::try_from(offset).expect("offset does not fit in u32");
+    let proof_input = PDFCircuitInput {
+        pdf_bytes,
+        page_number,
+        offset: offset_u32,
+        substring: sub_string,
+    };
+
+    // Setup the inputs.
+    let mut stdin = SP1Stdin::new();
+    stdin.write(&proof_input);
 
     if execute {
         // Execute the program
@@ -93,8 +98,20 @@ fn main() {
 
         // Read the output.
         let decoded = PublicValuesStruct::abi_decode(output.as_slice(), true).unwrap();
-        let PublicValuesStruct { result } = decoded;
-        println!("Result: {}", result);
+        println!("Substring matches: {}", decoded.substringMatches);
+        println!(
+            "Message digest hash: 0x{}",
+            hex::encode(decoded.messageDigestHash.as_slice())
+        );
+        println!(
+            "Signer key hash: 0x{}",
+            hex::encode(decoded.signerKeyHash.as_slice())
+        );
+        println!(
+            "Substring hash: 0x{}",
+            hex::encode(decoded.substringHash.as_slice())
+        );
+        println!("Nullifier: 0x{}", hex::encode(decoded.nullifier.as_slice()));
         println!("Number of cycles: {}", report.total_instruction_count());
     } else {
         // Setup the program for proving.

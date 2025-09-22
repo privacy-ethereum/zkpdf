@@ -1,20 +1,26 @@
 pub use extractor::extract_text;
-pub use signature_validator::verify_pdf_signature;
+pub use signature_validator::{types::PdfSignatureResult, verify_pdf_signature};
+
+/// Result returned by `verify_text`, providing both the substring match and signature metadata.
+pub struct PdfVerificationResult {
+    pub substring_matches: bool,
+    pub signature: PdfSignatureResult,
+}
 
 /// Verifies a PDF's digital signature and checks that `sub_string` appears at `offset` on
-/// `page_number`. Returns `Ok(true)` when the substring matches at the given position,
-/// `Ok(false)` when it does not, and an `Err` for signature or extraction failures.
+/// `page_number`. Returns signature metadata and a substring match flag on success, or an error for
+/// signature/extraction failures.
 pub fn verify_text(
     pdf_bytes: Vec<u8>,
     page_number: u8,
     sub_string: &str,
     offset: usize,
-) -> Result<bool, String> {
+) -> Result<PdfVerificationResult, String> {
     // Step 1: verify signature
-    match verify_pdf_signature(&pdf_bytes) {
-        Ok(true) => {}
-        Ok(false) => return Err("signature verification failed".to_string()),
-        Err(e) => return Err(format!("signature verification error: {}", e)),
+    let signature = verify_pdf_signature(&pdf_bytes)
+        .map_err(|e| format!("signature verification error: {}", e))?;
+    if !signature.is_valid {
+        return Err("signature verification failed".to_string());
     }
 
     // Step 2: extract text
@@ -30,10 +36,15 @@ pub fn verify_text(
 
     // Step 3: check if substring matches exactly at the requested offset
     let page_text = &pages[index];
-    Ok(page_text
+    let result = page_text
         .get(offset..)
         .map(|slice| slice.starts_with(sub_string))
-        .unwrap_or(false))
+        .unwrap_or(false);
+
+    Ok(PdfVerificationResult {
+        substring_matches: result,
+        signature,
+    })
 }
 
 #[cfg(test)]
@@ -52,14 +63,18 @@ mod tests {
         let offset = page_text
             .find(name)
             .expect("expected substring missing from extracted text");
-        let result = verify_text(pdf_bytes, page_number, name, offset);
+        let result = verify_text(pdf_bytes, page_number, name, offset).unwrap();
 
-        assert!(result.is_ok(), "Verification call failed: {:?}", result);
-        assert!(result.unwrap(), "Text match failed at given offset");
+        assert!(result.signature.is_valid, "Signature verification failed");
+        assert!(
+            result.substring_matches,
+            "Text match failed at given offset"
+        );
     }
 }
 
 #[cfg(feature = "private_tests")]
+
 mod core_test {
     use super::*;
 
@@ -75,9 +90,12 @@ mod core_test {
         let offset = page_text
             .find(name)
             .expect("expected substring missing from extracted text");
-        let result = verify_text(pdf_bytes, page_number, name, offset);
+        let result = verify_text(pdf_bytes, page_number, name, offset).unwrap();
 
-        assert!(result.is_ok(), "Verification failed: {:?}", result);
-        assert!(result.unwrap(), "Text match failed at given offset");
+        assert!(result.signature.is_valid, "Signature verification failed");
+        assert!(
+            result.substring_matches,
+            "Text match failed at given offset"
+        );
     }
 }
