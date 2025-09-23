@@ -16,15 +16,9 @@ pub fn verify_text(
     sub_string: &str,
     offset: usize,
 ) -> Result<PdfVerificationResult, String> {
-    // Step 1: verify signature
-    let signature = verify_pdf_signature(&pdf_bytes)
-        .map_err(|e| format!("signature verification error: {}", e))?;
-    if !signature.is_valid {
-        return Err("signature verification failed".to_string());
-    }
+    // Step 1: verify signature and extract text
+    let PdfVerifiedContent { pages, signature } = verify_and_extract(pdf_bytes)?;
 
-    // Step 2: extract text
-    let pages = extract_text(pdf_bytes).map_err(|e| format!("text extraction error: {:?}", e))?;
     let index = page_number as usize;
     if index >= pages.len() {
         return Err(format!(
@@ -34,7 +28,7 @@ pub fn verify_text(
         ));
     }
 
-    // Step 3: check if substring matches exactly at the requested offset
+    // Step 2: check if substring matches exactly at the requested offset
     let page_text = &pages[index];
     let result = page_text
         .get(offset..)
@@ -45,6 +39,26 @@ pub fn verify_text(
         substring_matches: result,
         signature,
     })
+}
+
+#[derive(Debug, Clone)]
+pub struct PdfVerifiedContent {
+    pub pages: Vec<String>,
+    pub signature: PdfSignatureResult,
+}
+
+pub fn verify_and_extract(pdf_bytes: Vec<u8>) -> Result<PdfVerifiedContent, String> {
+    // Step 1: verify signature
+    let signature = verify_pdf_signature(&pdf_bytes)
+        .map_err(|e| format!("signature verification error: {}", e))?;
+    if !signature.is_valid {
+        return Err("signature verification failed".to_string());
+    }
+
+    // Step 2: extract text
+    let pages = extract_text(pdf_bytes).map_err(|e| format!("text extraction error: {:?}", e))?;
+
+    Ok(PdfVerifiedContent { pages, signature })
 }
 
 #[cfg(test)]

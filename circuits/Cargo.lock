@@ -6000,6 +6000,7 @@ dependencies = [
  "alloy-sol-types",
  "core",
  "extractor",
+ "regex",
  "serde",
  "sha2",
  "signature-validator",

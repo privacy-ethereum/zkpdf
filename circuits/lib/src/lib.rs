@@ -1,13 +1,16 @@
+pub mod gst_example;
 pub mod nullifier;
 pub mod types;
 
 pub use extractor::extract_text;
+pub use gst_example::verify_gst_certificate;
 pub use pdf_core::verify_text;
 pub use signature_validator::verify_pdf_signature;
 pub use types::PublicValuesStruct;
 
 use crate::types::{PDFCircuitInput, PDFCircuitOutput};
 
+/// Generic PDF verification function for basic text extraction and signature verification
 pub fn verify_pdf_claim(input: PDFCircuitInput) -> Result<PDFCircuitOutput, String> {
     let PDFCircuitInput {
         pdf_bytes,
