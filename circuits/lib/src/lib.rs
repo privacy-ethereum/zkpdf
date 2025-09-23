@@ -1,13 +1,22 @@
-pub mod gst_example;
-pub mod nullifier;
-pub mod types;
+// Public modules
+pub mod gst_example; // GST certificate verification logic
+pub mod nullifier; // Nullifier utilities for ZK circuits
+pub mod types; // Shared data structures
 
-pub use extractor::extract_text;
-pub use gst_example::verify_gst_certificate;
-pub use pdf_core::verify_text;
-pub use signature_validator::verify_pdf_signature;
-pub use types::PublicValuesStruct;
+// Re-exports for main API surface
+pub use extractor::extract_text; // PDF text extraction
+pub use gst_example::verify_gst_certificate; // GST certificate check
+pub use pdf_core::{
+    verify_and_extract, // Verify + extract in one call
+    verify_text,        // Verify substring at offset
+    PdfSignatureResult,
+    PdfVerificationResult,
+    PdfVerifiedContent,
+};
+pub use signature_validator::verify_pdf_signature; // Signature-only verification
+pub use types::PublicValuesStruct; // Public circuit values
 
+// Internal circuit types (not re-exported)
 use crate::types::{PDFCircuitInput, PDFCircuitOutput};
 
 /// Generic PDF verification function for basic text extraction and signature verification
