@@ -395,7 +395,7 @@ pub fn parse_pdf(data: &[u8]) -> Result<(Vec<PageContent>, HashMap<(u32, u16), P
         }
         parser.pos += 3;
         parser.skip_whitespace_and_comments();
-        let mut obj_value = if parser.pos < parser.len
+        let obj_value = if parser.pos < parser.len
             && parser.data[parser.pos] == b'<'
             && parser.pos + 1 < parser.len
             && parser.data[parser.pos + 1] == b'<'
@@ -502,7 +502,7 @@ pub fn parse_pdf(data: &[u8]) -> Result<(Vec<PageContent>, HashMap<(u32, u16), P
                 } else {
                     HashMap::new()
                 };
-                let mut stream_obj = PdfStream {
+                let stream_obj = PdfStream {
                     dict,
                     data: stream_data,
                 };

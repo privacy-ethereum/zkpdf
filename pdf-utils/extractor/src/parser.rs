@@ -201,10 +201,9 @@ impl<'a> Parser<'a> {
                     }
                     b'0'..=b'7' => {
                         // octal sequence
-                        let mut octal = 0;
                         let mut count = 0;
-                        let octal_digit = (next - b'0') as u8;
-                        octal = octal_digit as u32;
+                        let octal_digit = (next - b'0') as u32;
+                        let mut octal = octal_digit;
                         self.pos += 1;
                         count += 1;
                         while count < 3 && self.pos < self.len {

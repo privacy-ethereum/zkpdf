@@ -88,8 +88,8 @@ mod tests {
 }
 
 #[cfg(feature = "private_tests")]
-
 mod core_test {
+
     use super::*;
 
     #[test]
