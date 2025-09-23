@@ -1,77 +1,111 @@
-# signature-verifier
+# PDF Digital Signature Validator
 
-`signature-verifier` is a simple Rust crate that checks if the digital signatures in PDF files are valid. It focuses on signatures embedded within **PKCS#7/CMS SignedData structures**.
+A lightweight Rust crate for verifying digital signatures in PDF documents. Designed for zero-knowledge environments with minimal dependencies and comprehensive PKCS#7/CMS support.
 
-## Main Interface
+## 🎯 **Overview**
 
-The primary function is `verify_pdf_signature`:
+The `signature-validator` crate provides robust verification of digital signatures embedded in PDF files. It focuses on signatures within **PKCS#7/CMS SignedData structures** and performs both content integrity and signature authenticity checks.
+
+## 🚀 **Quick Start**
 
 ```rust
-pub fn verify_pdf_signature(pdf_bytes: &[u8]) -> Result<bool, String>
+use signature_validator::verify_pdf_signature;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Read signed PDF file
+    let pdf_bytes = std::fs::read("signed_document.pdf")?;
+
+    // Verify the signature
+    let result = verify_pdf_signature(&pdf_bytes)?;
+
+    if result.is_valid {
+        println!("✅ Signature is valid!");
+        println!("Signer: {}", result.signer_info);
+        println!("Signing time: {}", result.signing_time);
+    } else {
+        println!("❌ Signature verification failed");
+    }
+
+    Ok(())
+}
 ```
 
-It takes the raw bytes of a PDF file and returns `Ok(true)` if the verification is valid, `Ok(false)` if invalid, and `Err(String)` if an error occurred.
+## 📋 **Main Interface**
 
-### Running tests
-
-**1. Public Test:**
-
-To run the basic test, use this command:
-
-```bash
-cargo test
+```rust
+pub fn verify_pdf_signature(pdf_bytes: &[u8]) -> Result<PdfSignatureResult, String>
 ```
 
-**2. Private Test:**
+**Parameters:**
 
-It contains private test cases that are not exposed to the public. To run these tests, use the following command:
+- `pdf_bytes`: Raw PDF file bytes
 
-```bash
-cargo test --features private_tests
+**Returns:**
+
+- `Ok(PdfSignatureResult)`: Detailed signature verification result
+- `Err(String)`: Error if verification fails
+
+### Signature Result Structure
+
+```rust
+pub struct PdfSignatureResult {
+    pub is_valid: bool,                    // Overall verification result
+    pub message_digest: Vec<u8>,           // Extracted message digest
+    pub public_key: Vec<u8>,               // Signer's public key
+    pub signer_info: String,               // Signer information
+    pub signing_time: Option<String>,      // Signing timestamp
+    pub signature_algorithm: String,        // Used signature algorithm
+}
 ```
 
----
+## 🔐 **Verification Process**
 
-## Verification Process
+The `verify_pdf_signature` function performs two critical checks:
 
-`verify_pdf_signature` function performs two main checks:
+### 1. **Content Integrity Check**
 
-1. **Content Integrity Check**
-2. **Signature Authenticity Check**
+Verifies that the PDF content hasn't been tampered with since signing.
 
-### How Signed Data Works in PDFs
+**Process:**
 
-When a PDF is digitally signed, the signature typically doesn't cover the entire file. Instead, a specific portion of the PDF's data, defined by the **`ByteRange`**, is cryptographically signed. This `ByteRange` usually includes the document's main content and relevant metadata.
+1. Extract `signed_bytes` from PDF using the `ByteRange`
+2. Calculate cryptographic hash using the specified algorithm
+3. Compare with stored `MessageDigest` value
 
-Within the PDF:
+**Mathematical Verification:**
 
-- The **`ByteRange`** specifies the exact byte sequences that were included in the signing process.
-- During verification, only these byte ranges are read and processed; other parts of the PDF, such as the signature field itself or later additions like timestamps, are excluded from the initial integrity check.
-
----
-
-## Content Integrity Check (Message Digest)
-
-Here's the process:
-
-- Extract the `signed_bytes` from the PDF using the `ByteRange`.
-- Calculate the cryptographic hash of these bytes using the algorithm specified in the signature. Let's denote the hash function as \( H \).
-- Retrieve the `MessageDigest` value (\( M \)) stored within the PDF's signature dictionary.
-
-The verification then involves checking the following equation:
-
-```math
-Hash(\text{signed\_bytes}) == M
+```
+Hash(signed_bytes) == MessageDigest
 ```
 
-## Signature Authenticity Check
+### 2. **Signature Authenticity Check**
 
-After Content Integrity Check, the actual digital signature is verified. This signature covers a data structure known as `signed_attributes`, which is typically an ASN.1 structure embedded within the PDF.
+Verifies that the signature was created by the claimed signer.
 
-### What are signed_attributes?
+**Process:**
 
-These are structured data, often represented as an ASN.1 `SET`. It contain critical metadata associated with the signing event, including the MessageDigest, the time of signing, and potentially other relevant information.
-Before the digital signature is generated, these signed_attributes are encoded and then cryptographically hashed.
+1. Extract `signed_attributes` (ASN.1 structure)
+2. Hash the encoded signed attributes
+3. Verify signature using signer's public key
+
+**Mathematical Verification:**
+
+```
+Verify(PublicKey, Hash(signed_attributes), Signature) == true
+```
+
+## 📄 **How PDF Signatures Work**
+
+### ByteRange Concept
+
+PDF signatures don't cover the entire file. Instead, they sign specific byte ranges:
+
+- **`ByteRange`** defines which parts of the PDF were signed
+- Typically includes document content and metadata
+- Excludes the signature field itself and later additions
+- Allows incremental updates without invalidating signatures
+
+### Signed Attributes Structure
 
 ```asn1
 SET {
@@ -79,29 +113,122 @@ SET {
     OCTET STRING (hash value)
     OBJECT IDENTIFIER (signingTime)
     UTCTime (time value)
+    OBJECT IDENTIFIER (contentType)
+    OBJECT IDENTIFIER (signingCertificate)
     ...
 }
 ```
 
----
+## 🔧 **Supported Algorithms**
 
-### Signature Verification Process:
+| Algorithm      | Hash Function | Encryption | Support |
+| -------------- | ------------- | ---------- | ------- |
+| **RSA-SHA1**   | SHA-1         | RSA        | ✅      |
+| **RSA-SHA256** | SHA-256       | RSA        | ✅      |
+| **RSA-SHA384** | SHA-384       | RSA        | ✅      |
+| **RSA-SHA512** | SHA-512       | RSA        | ✅      |
 
-( H(\text{signed_attributes}) ) as the cryptographic hash of the encoded signed_attributes.
-( Sig ) as the digital signature extracted from the PDF.
-( PK ) as the public key associated with the signer's certificate.
+### Algorithm Details
 
-Then we verify:
-\text{Verify}(PK, H(\text{signed_attributes}), Sig) == \text{true}
-If:
+- **Hash Functions**: SHA-1, SHA-256, SHA-384, SHA-512
+- **Encryption**: RSA with PKCS#1 v1.5 padding
+- **Signature Format**: PKCS#7/CMS SignedData
+- **ASN.1 Encoding**: DER (Distinguished Encoding Rules)
 
-## Supported Algorithms (PKCS#7 with RSA)
+## 📝 **Usage Examples**
 
-This crate currently supports verification for PDF signatures using **PKCS#7/CMS SignedData** structures with the following algorithms:
+### Basic Signature Verification
 
-| Algorithm                   | Support |
-| --------------------------- | ------- |
-| SHA-1 with RSA encryption   | Yes     |
-| SHA-256 with RSA encryption | Yes     |
-| SHA-384 with RSA encryption | Yes     |
-| SHA-512 with RSA encryption | Yes     |
+```rust
+use signature_validator::verify_pdf_signature;
+
+let pdf_bytes = include_bytes!("document.pdf");
+let result = verify_pdf_signature(pdf_bytes)?;
+
+if result.is_valid {
+    println!("Document is authentic and unmodified");
+} else {
+    println!("Document verification failed");
+}
+```
+
+### Detailed Signature Information
+
+```rust
+let result = verify_pdf_signature(&pdf_bytes)?;
+
+println!("Signature Valid: {}", result.is_valid);
+println!("Algorithm: {}", result.signature_algorithm);
+println!("Signer: {}", result.signer_info);
+
+if let Some(time) = result.signing_time {
+    println!("Signed at: {}", time);
+}
+
+// Access raw cryptographic data
+println!("Message Digest: {}", hex::encode(&result.message_digest));
+println!("Public Key Length: {} bytes", result.public_key.len());
+```
+
+### Core Components
+
+- **PDF Parser** – Extracts signature fields and ByteRange
+- **PKCS#7 Parser** – Parses ASN.1 SignedData structures
+- **Crypto Engine** – Performs hash and signature verification
+- **Certificate Handler** – Processes signer certificates
+
+### Dependencies
+
+- `rsa` – RSA signature verification
+- `sha1`, `sha2` – Hash function implementations
+- `simple_asn1` – ASN.1 parsing
+- `hex` – Hexadecimal encoding/decoding
+- `num-bigint` – Big integer arithmetic for RSA
+
+## 🧪 **Testing**
+
+### Public Tests
+
+Run the basic test suite:
+
+```bash
+cargo test -p signature-validator
+```
+
+### Private Tests
+
+Run tests with sample signed PDFs:
+
+```bash
+cargo test -p signature-validator --features private_tests
+```
+
+## ⚠️ **Limitations**
+
+### Supported Features
+
+- ✅ PKCS#7/CMS SignedData structures
+- ✅ RSA signatures with SHA-1/256/384/512
+- ✅ Standard PDF signature fields
+- ✅ ByteRange-based content verification
+- ✅ ASN.1 DER encoding
+
+### Unsupported Features
+
+- ❌ ECDSA signatures
+- ❌ Timestamp verification
+- ❌ Certificate chain validation and Multiple signatures
+
+## 🤝 **Contributing**
+
+When contributing to the signature validator:
+
+- Keep dependencies minimal
+- Ensure ZK-VM compatibility
+- Add tests for new algorithms
+- Document security considerations
+- Maintain compatibility with existing signatures
+
+## 📄 **License**
+
+This crate is licensed under the same terms as the parent repository.

@@ -14,11 +14,48 @@ This repo enables such proving capability using SP1-based circuits.
 
 ## Structure
 
-- **pdf-utils/** – Rust crates for:
+- **[pdf-utils/](pdf-utils/)** – Rust crates for:
   - Validating PKCS#7 signatures (RSA-SHA256)
   - Extracting Unicode text from PDF streams
-- **circuits/** – SP1-compatible zero-knowledge circuits for signature and text proofs
-- **app/** – Minimal React frontend to demo proof generation and verification
+  - WebAssembly bindings for browser integration
+- **[circuits/](circuits/)** – SP1-compatible zero-knowledge circuits for signature and text proofs
+- **[app/](app/)** – Minimal React frontend to demo proof generation and verification
+
+## Documentation
+
+- **[PDF Utils](pdf-utils/README.md)** - Core PDF processing libraries
+- **[Circuits](circuits/README.md)** - Zero-knowledge proof circuits
+- **[Circuit Library](circuits/lib/README.md)** -  Complete PDF verification library API
+- **[Extractor](pdf-utils/extractor/README.md)** - PDF text extraction
+- **[Signature Validator](pdf-utils/signature-validator/README.md)** - Digital signature verification
+- **[Core Library](pdf-utils/core/README.md)** - Combined PDF verification
+- **[WASM Bindings](pdf-utils/wasm/README.md)** - Browser-compatible API
+
+## Installation
+
+Add the PDF verification library to your Rust project:
+
+```toml
+[dependencies]
+zkpdf-lib = { git = "https://github.com/privacy-ethereum/zkpdf", branch = "main", subdir = "circuits/lib" }
+```
+
+## Quick Start
+
+```rust
+use zkpdf_lib::{verify_pdf_claim, PDFCircuitInput};
+
+// Create input for PDF verification
+let input = PDFCircuitInput {
+    pdf_bytes: pdf_data,
+    page_number: 0,
+    offset: 100,
+    substring: "Important Document".to_string(),
+};
+
+// Verify PDF
+let result = verify_pdf_claim(input)?;
+```
 
 ## How it Works
 
@@ -76,16 +113,14 @@ yarn dev
 
 Visit [http://localhost:3000](http://localhost:3000) to view the interface.
 
-
-
 https://github.com/user-attachments/assets/2c369a52-1d2c-4487-b47d-bcb7e6ff2fec
-
-
-
-
 
 ## Use Cases
 
 - Prove that a document is signed without showing its contents
 - Selectively reveal fields from government-issued certificates
 - Use verified document facts in smart contracts
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
