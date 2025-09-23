@@ -7,8 +7,8 @@ edition = "2021"
 hex = "0.4.3"
 simple_asn1 = "0.6.3"
 rsa = "0.9.0"
-sha2 = "0.10"
-sha1 = "0.10" 
+sha2 = { version = "0.10.8", features = ["oid"] }
+sha1 = { version = "0.10.6", features = ["oid"] } 
 num-bigint = "0.4.6"
 num-traits = "0.2.19"
 thiserror = "1.0"
