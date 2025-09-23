@@ -937,7 +937,7 @@ checksum = "7c74b8349d32d297c9134b8c88677813a227df8f779daa29bfc29c183fe3dca6"
 
 [[package]]
 name = "core"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "extractor",
  "signature-validator",
@@ -1379,7 +1379,7 @@ dependencies = [
 
 [[package]]
 name = "extractor"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "miniz_oxide 0.7.4",
 ]
@@ -4081,7 +4081,7 @@ dependencies = [
 
 [[package]]
 name = "signature-validator"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "hex",
  "num-bigint 0.4.6",
@@ -5994,7 +5994,7 @@ dependencies = [
 
 [[package]]
 name = "zkpdf-lib"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "alloy-primitives 0.8.25",
  "alloy-sol-types",
