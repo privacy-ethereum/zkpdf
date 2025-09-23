@@ -1,6 +1,6 @@
 [package]
 name = "wasm"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2024"
 
 
@@ -12,3 +12,7 @@ core = {path = "../core"}
 extractor = {path ="../extractor"}
 wasm-bindgen = "0.2"
 getrandom = { version = "0.2", features = ["js"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde-wasm-bindgen = "0.6"
+base64 = "0.21"

@@ -395,7 +395,7 @@ pub fn parse_pdf(data: &[u8]) -> Result<(Vec<PageContent>, HashMap<(u32, u16), P
         }
         parser.pos += 3;
         parser.skip_whitespace_and_comments();
-        let mut obj_value = if parser.pos < parser.len
+        let obj_value = if parser.pos < parser.len
             && parser.data[parser.pos] == b'<'
             && parser.pos + 1 < parser.len
             && parser.data[parser.pos + 1] == b'<'
@@ -502,7 +502,7 @@ pub fn parse_pdf(data: &[u8]) -> Result<(Vec<PageContent>, HashMap<(u32, u16), P
                 } else {
                     HashMap::new()
                 };
-                let mut stream_obj = PdfStream {
+                let stream_obj = PdfStream {
                     dict,
                     data: stream_data,
                 };
@@ -1001,6 +1001,23 @@ mod extractor_tests {
                 assert!(!text_per_page.is_empty(), "No text extracted from PDF");
                 assert!(
                     text_per_page[0] == "Sample Signed PDF Document",
+                    "Expected text not found in the first page"
+                );
+            }
+            Err(e) => panic!("Failed to extract PDF text: {:?}", e),
+        }
+    }
+
+    #[test]
+    fn extract_gst_template_pdf() {
+        let pdf_data = include_bytes!("../../sample-pdfs/GST-certificate.pdf").to_vec();
+
+        match super::extract_text(pdf_data) {
+            Ok(text_per_page) => {
+                assert!(text_per_page.len() == 3, "Expected at least 3 pages");
+                assert!(!text_per_page.is_empty(), "No text extracted from PDF");
+                assert!(
+                    text_per_page[0].contains("Goods and Services Tax"),
                     "Expected text not found in the first page"
                 );
             }

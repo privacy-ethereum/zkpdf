@@ -4,14 +4,16 @@ use sp1_sdk::{include_elf, ProverClient, SP1ProofWithPublicValues, SP1Stdin};
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
+use zkpdf_lib::types::PDFCircuitInput;
 
-pub const FIBONACCI_ELF: &[u8] = include_elf!("fibonacci-program");
+pub const ZKPDF_ELF: &[u8] = include_elf!("zkpdf-program");
 
 #[derive(Deserialize)]
 struct ProofRequest {
     pdf_bytes: Vec<u8>,
     page_number: u8,
     sub_string: String,
+    offset: Option<usize>,
 }
 
 #[derive(Serialize)]
@@ -22,12 +24,27 @@ struct VerifyResponse {
 
 async fn prove(Json(body): Json<ProofRequest>) -> Json<SP1ProofWithPublicValues> {
     let client = ProverClient::from_env();
-    let (pk, vk) = client.setup(FIBONACCI_ELF);
+    let (pk, _vk) = client.setup(ZKPDF_ELF);
+
+    let ProofRequest {
+        pdf_bytes,
+        page_number,
+        sub_string,
+        offset,
+    } = body;
+
+    let offset = offset.expect("Offset must be provided in the request");
+    let offset_u32 = u32::try_from(offset).expect("offset does not fit in u32");
+
+    let proof_input = PDFCircuitInput {
+        pdf_bytes,
+        page_number,
+        offset: offset_u32,
+        substring: sub_string,
+    };
 
     let mut stdin = SP1Stdin::new();
-    stdin.write(&body.pdf_bytes);
-    stdin.write(&body.page_number);
-    stdin.write(&body.sub_string);
+    stdin.write(&proof_input);
 
     let proof = client
         .prove(&pk, &stdin)
@@ -40,7 +57,7 @@ async fn prove(Json(body): Json<ProofRequest>) -> Json<SP1ProofWithPublicValues>
 
 async fn verify(Json(proof): Json<SP1ProofWithPublicValues>) -> Json<VerifyResponse> {
     let client = ProverClient::from_env();
-    let (_pk, vk) = client.setup(FIBONACCI_ELF);
+    let (_pk, vk) = client.setup(ZKPDF_ELF);
 
     match client.verify(&proof, &vk) {
         Ok(_) => Json(VerifyResponse {

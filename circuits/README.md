@@ -1,89 +1,158 @@
-# SP1 Project Template
+# PDF Verification Circuits
 
-This is a template for creating an end-to-end [SP1](https://github.com/succinctlabs/sp1) project
-that can generate a proof of any RISC-V program.
+Zero-knowledge circuits for PDF text extraction and digital signature verification using [SP1](https://github.com/succinctlabs/sp1). Generates cryptographic proofs that specific text appears in signed PDF documents.
 
-## Requirements
+## 🎯 **Overview**
+
+This project provides SP1 circuits that can:
+
+- Extract text from PDF documents
+- Verify digital signatures
+- Prove that specific text appears at exact positions
+- Generate cryptographic proofs for blockchain verification
+
+## 🚀 **Quick Start**
+
+### Installation
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+zkpdf-lib = { git = "https://github.com/privacy-ethereum/zkpdf", branch = "main", subdir = "circuits/lib" }
+```
+
+> 📚 **For complete API documentation, see [Circuit Library Documentation](lib/README.md)**
+
+### Requirements
 
 - [Rust](https://rustup.rs/)
 - [SP1](https://docs.succinct.xyz/docs/sp1/getting-started/install)
 
-## Running the Project
+### Basic Usage
 
-There are 3 main ways to run this project: execute a program, generate a core proof, and
-generate an EVM-compatible proof.
+```rust
+use zkpdf_lib::{verify_pdf_claim, PDFCircuitInput};
 
-### Build the Program
+// Create input for PDF verification
+let input = PDFCircuitInput {
+    pdf_bytes: pdf_data,
+    page_number: 0,
+    offset: 100,
+    substring: "Important Document".to_string(),
+};
 
-The program is automatically built through `script/build.rs` when the script is built.
+// Verify PDF and generate proof
+let result = verify_pdf_claim(input)?;
+```
+
+## 🔧 **Running the Circuits**
 
 ### Execute the Program
 
-To run the program without generating a proof:
+To run the PDF verification without generating a proof:
 
 ```sh
 cd script
 cargo run --release -- --execute
 ```
 
-This will execute the program and display the output.
+### Generate SP1 Core Proof
 
-### Generate an SP1 Core Proof
-
-To generate an SP1 [core proof](https://docs.succinct.xyz/docs/sp1/generating-proofs/proof-types#core-default) for your program:
+To generate a core proof for PDF verification:
 
 ```sh
 cd script
 cargo run --release -- --prove
 ```
 
-### Generate an EVM-Compatible Proof
+### Generate EVM-Compatible Proof
 
 > [!WARNING]
-> You will need at least 16GB RAM to generate a Groth16 or PLONK proof. View the [SP1 docs](https://docs.succinct.xyz/docs/sp1/getting-started/hardware-requirements#local-proving) for more information.
-
-Generating a proof that is cheap to verify on the EVM (e.g. Groth16 or PLONK) is more intensive than generating a core proof.
-
-To generate a Groth16 proof:
+> Requires at least 16GB RAM for Groth16/PLONK proofs.
 
 ```sh
+# Groth16 proof
 cd script
 cargo run --release --bin evm -- --system groth16
-```
 
-To generate a PLONK proof:
-
-```sh
+# PLONK proof
+cd script
 cargo run --release --bin evm -- --system plonk
 ```
 
-These commands will also generate fixtures that can be used to test the verification of SP1 proofs
-inside Solidity.
+### Prover Server
 
-### Retrieve the Verification Key
-
-To retrieve your `programVKey` for your on-chain contract, run the following command in `script`:
+Run the HTTP API server for remote PDF verification:
 
 ```sh
+# Set environment variables
+export SP1_PROVER=network
+export NETWORK_PRIVATE_KEY=0x...
+
+# Run the server
+cd script
+cargo run --release --bin prover
+```
+
+**API Endpoints:**
+
+- `POST /prove` - Generate PDF verification proof
+- `POST /verify` - Verify an existing proof
+
+**Example Request:**
+
+```json
+{
+  "pdf_bytes": [
+    /* PDF file bytes */
+  ],
+  "page_number": 0,
+  "sub_string": "Important Document",
+  "offset": 100
+}
+```
+
+### Retrieve Verification Key
+
+```sh
+cd script
 cargo run --release --bin vkey
 ```
 
-## Using the Prover Network
+## 🧪 **Testing**
 
-We highly recommend using the [Succinct Prover Network](https://docs.succinct.xyz/docs/network/introduction) for any non-trivial programs or benchmarking purposes. For more information, see the [key setup guide](https://docs.succinct.xyz/docs/network/developers/key-setup) to get started.
+```bash
+# Run all tests
+cargo test
 
-To get started, copy the example environment file:
-
-```sh
-cp .env.example .env
+# Run specific circuit tests
+cargo test -p zkpdf-lib
 ```
 
-Then, set the `SP1_PROVER` environment variable to `network` and set the `NETWORK_PRIVATE_KEY`
-environment variable to your whitelisted private key.
+## 🌐 **Smart Contract Integration**
 
-For example, to generate an EVM-compatible proof using the prover network, run the following
-command:
+The generated proofs can be verified on-chain using the provided Solidity contracts:
 
-```sh
-SP1_PROVER=network NETWORK_PRIVATE_KEY=... cargo run --release --bin evm
+```solidity
+contract PdfVerifier {
+    function verifyPdfProof(
+        bytes calldata proof,
+        bytes32 messageDigestHash,
+        bytes32 signerKeyHash,
+        bytes32 substringHash,
+        bytes32 nullifier
+    ) external view returns (bool);
+}
 ```
+
+## 📚 **Dependencies**
+
+- `sp1-sdk` – SP1 zero-knowledge framework
+- `pdf-utils` – PDF processing libraries
+- `alloy-primitives` – Cryptographic primitives
+- `serde` – Serialization framework
+
+## 📄 **License**
+
+This project is licensed under the same terms as the parent repository.
