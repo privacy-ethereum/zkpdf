@@ -53,6 +53,11 @@ jobs:
           chmod +x generate_wasm.sh
           ./generate_wasm.sh
 
+      - name: Copy WASM files to public directory
+        run: |
+          mkdir -p app/public/pkg
+          cp pdf-utils/wasm/pkg/* app/public/pkg/
+
       - name: Build Next.js app
         run: yarn build
         working-directory: ./app
@@ -69,11 +74,38 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
-      - name: Upload app artifact
+      - name: Create combined deployment
+        run: |
+          # Create a combined deployment directory
+          mkdir -p combined-deploy
+
+          # Copy app files to root
+          cp -r app/out/* combined-deploy/
+
+          # Copy docs to /docs subdirectory
+          mkdir -p combined-deploy/docs
+          cp -r docs/book/* combined-deploy/docs/
+
+          # Create a simple index.html redirect for docs
+          cat > combined-deploy/docs/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <meta charset="utf-8">
+              <title>ZKPDF Documentation</title>
+              <meta http-equiv="refresh" content="0; url=./introduction.html">
+          </head>
+          <body>
+              <p>Redirecting to documentation... <a href="./introduction.html">Click here</a></p>
+          </body>
+          </html>
+          EOF
+
+      - name: Upload combined artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./app/out
+          path: ./combined-deploy
 
-      - name: Deploy app to GitHub Pages
+      - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

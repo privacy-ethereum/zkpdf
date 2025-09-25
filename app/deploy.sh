@@ -5,6 +5,11 @@ echo "🔨 Building WASM module..."
 cd ../pdf-utils/wasm
 ./generate_wasm.sh
 
+# Copy WASM files to app public directory
+echo "📦 Copying WASM files to app..."
+mkdir -p ../../app/public/pkg
+cp pkg/* ../../app/public/pkg/
+
 # Go back to app directory
 cd ../../app
 
