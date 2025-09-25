@@ -106,6 +106,6 @@ jobs:
         with:
           path: ./combined-deploy
 
-      - name: Deploy to GitHub Pages
+      - name: Deploy app to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
