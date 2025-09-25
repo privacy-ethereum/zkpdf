@@ -1,8 +1,14 @@
-name: Deploy to GitHub Pages
+name: Deploy ZKPDF
 
 on:
   push:
     branches: [main, dev]
+    paths:
+      - "app/**"
+      - "docs/**"
+      - "pdf-utils/**"
+      - "scripts/**"
+      - ".github/workflows/deploy.yml"
   pull_request:
     branches: [main]
 
@@ -43,69 +49,20 @@ jobs:
           target: wasm32-unknown-unknown
           override: true
 
-      - name: Install dependencies
-        run: yarn install --frozen-lockfile
-        working-directory: ./app
+      - name: Make deploy script executable
+        run: chmod +x scripts/deploy.sh
 
-      - name: Build WASM
-        run: |
-          cd pdf-utils/wasm
-          chmod +x generate_wasm.sh
-          ./generate_wasm.sh
-
-      - name: Copy WASM files to public directory
-        run: |
-          mkdir -p app/public/pkg
-          cp pdf-utils/wasm/pkg/* app/public/pkg/
-
-      - name: Build Next.js app
-        run: yarn build
-        working-directory: ./app
-
-      - name: Install mdbook
-        run: cargo install mdbook
-
-      - name: Build documentation
-        run: |
-          cd docs
-          chmod +x build.sh
-          ./build.sh
+      - name: Deploy using unified script
+        run: ./scripts/deploy.sh all
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
-
-      - name: Create combined deployment
-        run: |
-          # Create a combined deployment directory
-          mkdir -p combined-deploy
-
-          # Copy app files to root
-          cp -r app/out/* combined-deploy/
-
-          # Copy docs to /docs subdirectory
-          mkdir -p combined-deploy/docs
-          cp -r docs/book/* combined-deploy/docs/
-
-          # Create a simple index.html redirect for docs
-          cat > combined-deploy/docs/index.html << 'EOF'
-          <!DOCTYPE html>
-          <html>
-          <head>
-              <meta charset="utf-8">
-              <title>ZKPDF Documentation</title>
-              <meta http-equiv="refresh" content="0; url=./introduction.html">
-          </head>
-          <body>
-              <p>Redirecting to documentation... <a href="./introduction.html">Click here</a></p>
-          </body>
-          </html>
-          EOF
 
       - name: Upload combined artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./combined-deploy
 
-      - name: Deploy app to GitHub Pages
+      - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
