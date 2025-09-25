@@ -1,5 +1,5 @@
 pub use extractor::extract_text;
-pub use signature_validator::{types::PdfSignatureResult, verify_pdf_signature};
+pub use signature_verifier::{types::PdfSignatureResult, verify_pdf_signature};
 
 /// Result returned by `verify_text`, providing both the substring match and signature metadata.
 pub struct PdfVerificationResult {
