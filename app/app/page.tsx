@@ -392,7 +392,28 @@ const Home: React.FC = () => {
       const data = await res.json();
       setProofData(JSON.stringify(data, null, 2));
     } catch (e: any) {
-      setProofError(e.message);
+      // Check if it's a connection error (API not running)
+      if (
+        e.message.includes("fetch") ||
+        e.message.includes("Failed to fetch") ||
+        e.message.includes("ECONNREFUSED")
+      ) {
+        setProofError(`Prover API is not setup. Please check how to setup local prover API to run this feature.
+
+Setup Instructions:
+1. Navigate to circuits/script directory
+2. Set environment variables (if using Succinct Prover Network):
+   export SP1_PROVER=network
+   export NETWORK_PRIVATE_KEY=your_private_key
+3. Run the prover server:
+   cargo run --release --bin prover
+
+The server will start on port 3001. You can also run without environment variables for local proving (slower but works).
+
+For more details, see: circuits/README.md`);
+      } else {
+        setProofError(e.message);
+      }
     } finally {
       setProofLoading(false);
       setStatus("Ready.");
@@ -792,7 +813,9 @@ const Home: React.FC = () => {
               {proofError && (
                 <div className="bg-red-900/20 border border-red-500 rounded p-3">
                   <div className="text-red-400 font-medium">Proof Error:</div>
-                  <div className="text-red-300 text-sm">{proofError}</div>
+                  <div className="text-red-300 text-sm whitespace-pre-line">
+                    {proofError}
+                  </div>
                 </div>
               )}
 
