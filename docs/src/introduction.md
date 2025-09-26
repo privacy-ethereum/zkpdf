@@ -2,6 +2,8 @@
 
 ZKPDF is a library that enables you to create zero-knowledge proofs about data contained within PDF documents. It allows you to cryptographically prove properties about PDFs without revealing their full contents, making it particularly useful for verifying digital signatures and proving that specific statements appear in documents.
 
+*Note: The current implementation exposes data to SP1's prover network; therefore, we highly recommend only using the provided PDF templates for testing. Future iterations will focus on client-side proofing capabilities. 
+
 ## Quick Links
 
 - 🔗 **[ZKPDF Compatibility Checker](https://privacy-ethereum.github.io/zkpdf/)** - Test if your PDF works with zkPDF
@@ -13,18 +15,16 @@ ZKPDF is a library that enables you to create zero-knowledge proofs about data c
 
 ## The Ever-Expanding Ecosystem of Signed Data
 
-We've already made remarkable progress in "SNARKifying" various forms of signed data. The ability to cryptographically verify information while preserving privacy isn't just theoretical anymore—it's production-ready and being used in real-world applications at scale. Consider what is actively in use today:
-
-### Existing ZK Verification Systems
+We've already made remarkable progress in "SNARKifying" various forms of signed data. The ability to cryptographically verify information while preserving privacy can be used in real-world applications at scale. Consider what is actively in use today:
 
 - **ZK-Email**: Email verification, allowing users to prove specific facts about email content without revealing the email itself
-- **National Identity Cards**: Projects like Anon Aadhaar, India's Aadhaar program has over 1.4 billion digital identities, allowing users to prove they have a valid Aadhaar card and are over 18 without revealing their identity number, name, or other personal details
-- **Electronic Passports**: There are 1.2+ billion e-passports in global circulation, each containing cryptographically signed biometric data that prevents forgery and identity theft at borders—a testament to worldwide adoption of verifiable physical documents
-- **Web Data (zkTLS, RFC9421, SXG)**: Emerging technologies like zkTLS allow users to prove specific content on a website
+- **National Identity Cards**: India's Aadhaar program has over 1.4 billion digital identities, Projects like Anon Aadhaar allows users to prove they have a valid Aadhaar card and are over 18 without revealing their identity number, name, or other personal details
+- **Electronic Passports (zkpassport)**: There are 1.2+ billion e-passports in global circulation, each containing cryptographically signed biometric data that prevents forgery and identity theft at borders—a testament to worldwide adoption of verifiable physical documents
+- **Web Data (zkTLS)**: Emerging technologies like zkTLS allow users to prove specific content on a website
 
 ### The PDF Gap
 
-Yet despite all these advances, one critical piece has remained out of reach: **PDFs**. This is the sleeping giant of signed data. The PDF Association estimates that "well over 90 percent of all signed documents are PDFs," with the e-signature market growing at over 25% annually through 2025. PDFs represent a significant volume of signed data, perhaps the most universal but least programmable format in our current verification ecosystem.
+The PDF Association estimates that "well over 90 percent of all signed documents are PDFs," with the e-signature market projected to grow at over 25% annually through 2025, representing a substantial volume of signed data.
 
 ZKPDF bridges this critical gap, bringing the power of zero-knowledge verification to the world's most popular document format.
 
@@ -38,11 +38,9 @@ The library focuses on three core capabilities:
 - **Content Verification**: Prove that specific text appears at exact locations within a PDF document
 - **Privacy-Preserving Verification**: Verify document properties without exposing sensitive content
 
-**You don't need to understand PDF parsing, PKCS#7 structures, or zero-knowledge circuits—zkPDF abstracts all of this complexity into simple, easy-to-use APIs.**
+**You don't need to understand PDF parsing, PKCS#7 structures, or zero-knowledge circuits, zkPDF abstracts all of this complexity into simple, easy-to-use APIs.**
 
 ## Real-World Applications
-
-ZKPDF addresses critical privacy and verification challenges across industries:
 
 - **Financial Services**: Bank statements, tax documents, insurance claims
 - **Government & Compliance**: Identity documents, business certificates, legal documents
