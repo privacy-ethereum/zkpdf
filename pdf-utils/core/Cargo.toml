@@ -4,7 +4,7 @@ version = "0.0.1"
 edition = "2021"
 
 [dependencies]
-signature-validator = { path = "../signature-validator" }
+signature-verifier = { path = "../signature-verifier" }
 extractor = { path = "../extractor" }
 
 [features]

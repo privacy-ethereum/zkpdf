@@ -147,7 +147,7 @@ cargo test -p zkpdf-lib
 
 - `pdf-utils-core` – Core PDF verification logic
 - `pdf-utils-extractor` – Text extraction from PDFs
-- `pdf-utils-signature-validator` – Digital signature verification
+- `pdf-utils-signature-verifier` – Digital signature verification
 
 ## 📄 **License**
 

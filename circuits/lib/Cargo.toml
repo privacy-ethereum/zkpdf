@@ -9,7 +9,7 @@ alloy-sol-types = { workspace = true }
 sha2 = { version = "0.10", default-features = false }
 alloy-primitives = "0.8"
 serde = { version = "1", features = ["derive"] }
-signature-validator = { path = "../../pdf-utils/signature-validator" }
+signature-verifier = { path = "../../pdf-utils/signature-verifier" }
 extractor = { path = "../../pdf-utils/extractor" }
 pdf_core = { package = "core", path = "../../pdf-utils/core" }
 regex = "1.11"
