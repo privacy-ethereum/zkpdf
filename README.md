@@ -70,6 +70,7 @@ Follow these steps to run the prover API and the demo frontend.
 ### Requirements
 
 - [Rust](https://rustup.rs/)
+- [Node.js 18+](https://nodejs.org/)
 - [SP1](https://docs.succinct.xyz/docs/sp1/getting-started/install)
 
 ### 1. Clone the Repository
@@ -103,10 +104,13 @@ RUST_LOG=info cargo run --release --bin evm -- --system groth16
 
 ### 3. Run the Frontend
 
-In a separate terminal, start the Next.js app:
+In a separate terminal, build the WASM module and start the Next.js app:
 
 ```bash
-cd app
+# Build WASM module (requires Rust + wasm-pack)
+cd pdf-utils/wasm && ./generate_wasm.sh && cd ../../app
+
+# Start the frontend
 yarn install
 yarn dev
 ```
