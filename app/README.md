@@ -5,6 +5,9 @@ A Next.js frontend for demonstrating PDF verification and zero-knowledge proof g
 ## 🚀 **Quick Start**
 
 ```bash
+# Build WASM module first (requires Rust + wasm-pack)
+cd ../pdf-utils/wasm && ./generate_wasm.sh && cd ../../app
+
 # Install dependencies
 yarn install
 
@@ -24,7 +27,8 @@ Open [http://localhost:3000](http://localhost:3000) to view the demo.
 
 ## 📋 **Requirements**
 
-- Node.js 18+
+- [Rust](https://rustup.rs/)
+- [Node.js 18+](https://nodejs.org/)
 - Running prover server (see [circuits/README.md](../circuits/README.md))
 
 ## 🌐 **API Integration**
