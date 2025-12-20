@@ -216,8 +216,26 @@ fn process_page_dict(
                                 content_streams.push(s.data.clone());
                             }
                         }
+                        PdfObj::Array(arr) => {
+                            for item in arr {
+                                if let PdfObj::Reference(inner_ref) = item {
+                                    if let Some(PdfObj::Stream(s)) = objects.get(inner_ref) {
+                                        if let Some(filter) = s.dict.get("Filter") {
+                                            handle_stream_filters(
+                                                filter,
+                                                &s.data,
+                                                decompress,
+                                                &mut content_streams,
+                                            )?;
+                                        } else {
+                                            content_streams.push(s.data.clone());
+                                        }
+                                    }
+                                }
+                            }
+                        }
                         _ => {
-                            return Err(PdfError::ParseError("Content reference is not a stream"));
+                            return Err(PdfError::ParseError("Content reference is not a stream or array"));
                         }
                     }
                 }
