@@ -27,7 +27,7 @@ This repo enables such proving capability using SP1-based circuits.
 - **[Circuits](circuits/README.md)** - Zero-knowledge proof circuits
 - **[Circuit Library](circuits/lib/README.md)** -  Complete PDF verification library API
 - **[Extractor](pdf-utils/extractor/README.md)** - PDF text extraction
-- **[Signature Validator](pdf-utils/signature-validator/README.md)** - Digital signature verification
+- **[Signature Verifier](pdf-utils/signature-verifier/README.md)** - Digital signature verification
 - **[Core Library](pdf-utils/core/README.md)** - Combined PDF verification
 - **[WASM Bindings](pdf-utils/wasm/README.md)** - Browser-compatible API
 

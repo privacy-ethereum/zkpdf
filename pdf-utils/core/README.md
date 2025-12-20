@@ -4,7 +4,7 @@ A unified Rust crate that combines PDF text extraction and digital signature ver
 
 ## 🎯 **Overview**
 
-The `core` crate combines the functionality of `extractor` and `signature-validator` to provide a unified interface for PDF verification. It verifies both the digital signature and the presence of specific text at exact positions within the document.
+The `core` crate combines the functionality of `extractor` and `signature-verifier` to provide a unified interface for PDF verification. It verifies both the digital signature and the presence of specific text at exact positions within the document.
 
 ## 🚀 **Quick Start**
 

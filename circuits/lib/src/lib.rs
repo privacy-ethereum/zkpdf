@@ -13,7 +13,7 @@ pub use pdf_core::{
     PdfVerificationResult,
     PdfVerifiedContent,
 };
-pub use signature_validator::verify_pdf_signature; // Signature-only verification
+pub use signature_verifier::verify_pdf_signature; // Signature-only verification
 pub use types::PublicValuesStruct; // Public circuit values
 
 // Internal circuit types (not re-exported)

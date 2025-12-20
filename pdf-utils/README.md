@@ -22,7 +22,7 @@ Extracts plain text from PDF files with support for:
 - Minimal PDF parsing with no external PDF libraries
 - Support for StandardEncoding, WinAnsiEncoding, MacRomanEncoding, and PDFDocEncoding
 
-### [`signature-validator`](./signature-validator/) - Digital Signature Verification
+### [`signature-verifier`](./signature-verifier/) - Digital Signature Verification
 
 Verifies embedded digital signatures in PDFs using:
 
@@ -33,7 +33,7 @@ Verifies embedded digital signatures in PDFs using:
 
 ### [`core`](./core/) - Combined PDF Verification
 
-Combines `extractor` and `signature-validator` to:
+Combines `extractor` and `signature-verifier` to:
 
 - Validate that specific text appears in a signed PDF
 - Check its exact byte offset on a given page
@@ -98,7 +98,7 @@ Run tests for a specific crate:
 
 ```bash
 cargo test -p extractor
-cargo test -p signature-validator
+cargo test -p signature-verifier
 cargo test -p core
 cargo test -p wasm
 ```
@@ -136,7 +136,7 @@ cargo test -p wasm
 Each crate has detailed documentation:
 
 - [Extractor Documentation](./extractor/README.md)
-- [Signature Validator Documentation](./signature-validator/README.md)
+- [Signature Validator Documentation](./signature-verifier/README.md)
 - [Core Documentation](./core/README.md)
 - [WASM Documentation](./wasm/README.md)
 

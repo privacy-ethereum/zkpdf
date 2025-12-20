@@ -4,12 +4,12 @@ A lightweight Rust crate for verifying digital signatures in PDF documents. Desi
 
 ## 🎯 **Overview**
 
-The `signature-validator` crate provides robust verification of digital signatures embedded in PDF files. It focuses on signatures within **PKCS#7/CMS SignedData structures** and performs both content integrity and signature authenticity checks.
+The `signature-verifier` crate provides robust verification of digital signatures embedded in PDF files. It focuses on signatures within **PKCS#7/CMS SignedData structures** and performs both content integrity and signature authenticity checks.
 
 ## 🚀 **Quick Start**
 
 ```rust
-use signature_validator::verify_pdf_signature;
+use signature_verifier::verify_pdf_signature;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Read signed PDF file
@@ -140,7 +140,7 @@ SET {
 ### Basic Signature Verification
 
 ```rust
-use signature_validator::verify_pdf_signature;
+use signature_verifier::verify_pdf_signature;
 
 let pdf_bytes = include_bytes!("document.pdf");
 let result = verify_pdf_signature(pdf_bytes)?;
@@ -192,7 +192,7 @@ println!("Public Key Length: {} bytes", result.public_key.len());
 Run the basic test suite:
 
 ```bash
-cargo test -p signature-validator
+cargo test -p signature-verifier
 ```
 
 ### Private Tests
@@ -200,7 +200,7 @@ cargo test -p signature-validator
 Run tests with sample signed PDFs:
 
 ```bash
-cargo test -p signature-validator --features private_tests
+cargo test -p signature-verifier --features private_tests
 ```
 
 ## ⚠️ **Limitations**
