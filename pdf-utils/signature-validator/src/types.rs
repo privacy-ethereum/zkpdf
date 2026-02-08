@@ -70,6 +70,8 @@ pub enum SignedBytesError {
     InvalidContentsUtf8,
     #[error("Contents hex parse error: {0}")]
     ContentsHexDecode(#[from] FromHexError),
+    #[error("Signature encoding error: {0}")]
+    SignatureEncoding(String),
 }
 
 pub type SignedBytesResult<T> = Result<T, SignedBytesError>;

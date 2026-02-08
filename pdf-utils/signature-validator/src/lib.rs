@@ -1,3 +1,4 @@
+pub mod ber;
 pub mod pkcs7_parser;
 pub mod signed_bytes_extractor;
 pub mod types;
@@ -105,15 +106,72 @@ fn get_pkcs1v15_padding(algorithm: &SignatureAlgorithm) -> SignatureResult<Pkcs1
     }
 }
 
+/// Build a PKCS#1 v1.5 DigestInfo prefix that omits the NULL parameter after the hash algorithm OID
+fn get_pkcs1v15_padding_no_null(algorithm: &SignatureAlgorithm) -> SignatureResult<Pkcs1v15Sign> {
+    let (oid, hash_len): (&[u8], usize) = match algorithm {
+        SignatureAlgorithm::Sha1WithRsaEncryption => (
+            &[0x2B, 0x0E, 0x03, 0x02, 0x1A], // 1.3.14.3.2.26
+            20,
+        ),
+        SignatureAlgorithm::Sha256WithRsaEncryption => (
+            &[0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01], // 2.16.840.1.101.3.4.2.1
+            32,
+        ),
+        SignatureAlgorithm::Sha384WithRsaEncryption => (
+            &[0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02], // 2.16.840.1.101.3.4.2.2
+            48,
+        ),
+        SignatureAlgorithm::Sha512WithRsaEncryption => (
+            &[0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03], // 2.16.840.1.101.3.4.2.3
+            64,
+        ),
+        other => {
+            return Err(SignatureValidationError::UnsupportedAlgorithm(
+                other.clone(),
+            ))
+        }
+    };
+    let oid_len = oid.len() as u8;
+    let digest_len = hash_len as u8;
+    // No NULL, AlgorithmIdentifier is 2 bytes shorter
+    let mut prefix = vec![
+        0x30,
+        oid_len + 6 + digest_len, // outer SEQUENCE length
+        0x30,
+        oid_len + 2, // AlgorithmIdentifier length (no 05 00)
+        0x06,
+        oid_len,
+    ];
+    prefix.extend_from_slice(oid);
+    // No 05 00 here
+    prefix.extend_from_slice(&[0x04, digest_len]);
+
+    Ok(Pkcs1v15Sign {
+        hash_len: Some(hash_len),
+        prefix: prefix.into_boxed_slice(),
+    })
+}
+
 fn verify_rsa_signature(
     pub_key: &RsaPublicKey,
     padding: Pkcs1v15Sign,
     signed_attr_digest: &[u8],
     signature: &[u8],
+    algorithm: &SignatureAlgorithm,
 ) -> SignatureResult<bool> {
     match pub_key.verify(padding, signed_attr_digest, signature) {
         Ok(_) => Ok(true),
-        Err(RsaError::Verification) => Ok(false),
+        Err(RsaError::Verification) => {
+            // Retry with no-NULL DigestInfo prefix (RFC4055 variant)
+            let alt_padding = get_pkcs1v15_padding_no_null(algorithm)?;
+            match pub_key.verify(alt_padding, signed_attr_digest, signature) {
+                Ok(_) => Ok(true),
+                Err(RsaError::Verification) => Ok(false),
+                Err(e) => Err(SignatureValidationError::SignatureVerification(
+                    e.to_string(),
+                )),
+            }
+        }
         Err(e) => Err(SignatureValidationError::SignatureVerification(
             e.to_string(),
         )),
@@ -245,6 +303,7 @@ pub fn verify_pdf_signature(pdf_bytes: &[u8]) -> SignatureResult<PdfSignatureRes
                 padding,
                 &digest_for_signature,
                 &verifier_params.signature,
+                &verifier_params.algorithm,
             )?
         }
         PublicKeyType::Ecdsa {
@@ -288,6 +347,18 @@ mod tests {
         let res = verify_pdf_signature(&pdf_bytes)
             .expect("GST certificate signature verification failed");
         assert!(res.is_valid, "GST certificate signature reported invalid");
+    }
+
+    #[test]
+    fn test_pades_cades_detached() {
+        // PAdES signature with SubFilter ETSI.CAdES.detached
+        // Uses BER indefinite-length encoding (0x80) in the CMS structure
+        // and DigestInfo without NULL parameter (RFC 4055 variant)
+        let pdf_bytes: &[u8] = include_bytes!("../../sample-pdfs/pades_signed.pdf");
+
+        let res = verify_pdf_signature(pdf_bytes)
+            .expect("PAdES CAdES.detached signature verification failed");
+        assert!(res.is_valid, "PAdES signature reported invalid");
     }
 
     #[cfg(feature = "private_tests")]

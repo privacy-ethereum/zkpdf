@@ -1,5 +1,6 @@
 use std::str;
 
+use crate::ber::transcode_ber_to_der;
 use crate::types::{SignedBytesError, SignedBytesResult};
 
 struct ByteRange {
@@ -128,11 +129,61 @@ fn extract_signature_hex(pdf_bytes: &[u8], byte_range_pos: usize) -> SignedBytes
 }
 
 fn decode_signature_hex(hex_str: &str) -> SignedBytesResult<Vec<u8>> {
-    let mut signature_der = hex::decode(hex_str)?;
-    while signature_der.last() == Some(&0) {
-        signature_der.pop();
+    Ok(hex::decode(hex_str)?)
+}
+
+/// Strip trailing null-padding from a PDF `/Contents` hex string.
+fn strip_trailing_padding(input: &[u8]) -> SignedBytesResult<Vec<u8>> {
+    if input.len() < 2 {
+        return Err(SignedBytesError::SignatureEncoding(
+            "input too short for a TLV element".into(),
+        ));
     }
-    Ok(signature_der)
+    let mut pos: usize = 1;
+    // High-tag-number form (tag number ≥ 31)
+    if (input[0] & 0x1F) == 0x1F {
+        while pos < input.len() {
+            let b = input[pos];
+            pos += 1;
+            if (b & 0x80) == 0 {
+                break;
+            }
+        }
+    }
+    if pos >= input.len() {
+        return Err(SignedBytesError::SignatureEncoding(
+            "unexpected end at length byte".into(),
+        ));
+    }
+    let length_byte = input[pos];
+    pos += 1;
+
+    let content_len = if length_byte < 0x80 {
+        length_byte as usize
+    } else {
+        let num_bytes = (length_byte & 0x7F) as usize;
+        if num_bytes == 0 || pos + num_bytes > input.len() {
+            return Err(SignedBytesError::SignatureEncoding(
+                "invalid definite length".into(),
+            ));
+        }
+        let mut len = 0usize;
+        for i in 0..num_bytes {
+            len = len.checked_shl(8).ok_or_else(|| {
+                SignedBytesError::SignatureEncoding("length overflow".into())
+            })? | (input[pos + i] as usize);
+        }
+        pos += num_bytes;
+        len
+    };
+
+    let end = pos + content_len;
+    if end > input.len() {
+        return Err(SignedBytesError::SignatureEncoding(
+            "content length exceeds input".into(),
+        ));
+    }
+    Ok(input[..end].to_vec())
 }
 
 pub fn get_signature_der(pdf_bytes: &[u8]) -> SignedBytesResult<(Vec<u8>, Vec<u8>)> {
@@ -145,7 +196,16 @@ pub fn get_signature_der(pdf_bytes: &[u8]) -> SignedBytesResult<(Vec<u8>, Vec<u8
         .ok_or(SignedBytesError::ByteRangeNotFound)?;
 
     let hex_str = extract_signature_hex(pdf_bytes, br_pos)?;
-    let signature_der = decode_signature_hex(&hex_str)?;
+    let raw_bytes = decode_signature_hex(&hex_str)?;
+
+    let signature_der = if raw_bytes.len() >= 2 && raw_bytes[1] == 0x80 {
+        // BER indefinite-length, transcode to DER
+        transcode_ber_to_der(&raw_bytes)
+            .map_err(|e| SignedBytesError::SignatureEncoding(e.to_string()))?
+    } else {
+        // Already DER, strip trailing null-padding from PDF hex string
+        strip_trailing_padding(&raw_bytes)?
+    };
 
     Ok((signature_der, signed_data))
 }
