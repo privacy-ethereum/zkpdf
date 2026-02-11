@@ -4,13 +4,46 @@ use thiserror::Error;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SignatureAlgorithm {
+    // RSA algorithms
     Sha1WithRsaEncryption,
     Sha256WithRsaEncryption,
     Sha384WithRsaEncryption,
     Sha512WithRsaEncryption,
     RsaEncryption,
     RsaEncryptionWithUnknownHash(OID),
+    // ECDSA algorithms
+    EcdsaWithSha1,
+    EcdsaWithSha224,
+    EcdsaWithSha256,
+    EcdsaWithSha384,
+    EcdsaWithSha512,
+    // Generic/Unknown
     Unknown(OID),
+}
+
+impl SignatureAlgorithm {
+    pub fn is_ecdsa(&self) -> bool {
+        matches!(
+            self,
+            SignatureAlgorithm::EcdsaWithSha1
+                | SignatureAlgorithm::EcdsaWithSha224
+                | SignatureAlgorithm::EcdsaWithSha256
+                | SignatureAlgorithm::EcdsaWithSha384
+                | SignatureAlgorithm::EcdsaWithSha512
+        )
+    }
+
+    pub fn is_rsa(&self) -> bool {
+        matches!(
+            self,
+            SignatureAlgorithm::Sha1WithRsaEncryption
+                | SignatureAlgorithm::Sha256WithRsaEncryption
+                | SignatureAlgorithm::Sha384WithRsaEncryption
+                | SignatureAlgorithm::Sha512WithRsaEncryption
+                | SignatureAlgorithm::RsaEncryption
+                | SignatureAlgorithm::RsaEncryptionWithUnknownHash(_)
+        )
+    }
 }
 
 #[derive(Debug, Error)]
@@ -51,6 +84,8 @@ pub enum Pkcs7Error {
     UnsupportedDigestOid(OID),
     #[error("messageDigest attribute (OID 1.2.840.113549.1.9.4) not found")]
     MissingMessageDigest,
+    #[error("Unsupported elliptic curve: {0:?}")]
+    UnsupportedCurve(OID),
 }
 
 impl Pkcs7Error {
@@ -78,6 +113,10 @@ pub enum SignatureValidationError {
     InvalidPublicKey(String),
     #[error("RSA signature verification error: {0}")]
     SignatureVerification(String),
+    #[error("ECDSA signature verification error: {0}")]
+    EcdsaVerification(String),
+    #[error("Invalid ECDSA public key: {0}")]
+    InvalidEcdsaPublicKey(String),
 }
 
 pub type SignatureResult<T> = Result<T, SignatureValidationError>;
@@ -93,4 +132,17 @@ pub struct PdfSignatureResult {
     pub is_valid: bool,
     pub message_digest: Vec<u8>,
     pub public_key: Vec<u8>,
+}
+
+/// Enum to hold either RSA or ECDSA public key components
+#[derive(Debug, Clone)]
+pub enum PublicKeyType {
+    Rsa {
+        modulus: Vec<u8>,
+        exponent: num_bigint::BigUint,
+    },
+    Ecdsa {
+        curve_oid: OID,
+        public_key_point: Vec<u8>,
+    },
 }
