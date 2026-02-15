@@ -13,5 +13,13 @@ num-bigint = "0.4.6"
 num-traits = "0.2.19"
 thiserror = "1.0"
 
+# ECDSA
+p256 = { version = "0.13", features = ["ecdsa"] }
+p384 = { version = "0.13", features = ["ecdsa"] }
+signature = "2.2"
+
 [features]
 private_tests = []
+
+[dev-dependencies]
+rand_core = "0.6"
