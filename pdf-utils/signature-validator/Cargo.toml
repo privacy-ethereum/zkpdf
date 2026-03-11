@@ -1,7 +1,13 @@
 [package]
 name = "signature-validator"
-version = "0.0.1"
+version = "0.1.0"
 edition = "2021"
+authors = ["Kushmanmb"]
+description = "PKCS#7 digital signature validation (RSA-SHA256) for PDF documents"
+repository = "https://github.com/Kushmanmb/kushmanmb"
+license = "MIT"
+keywords = ["pdf", "pkcs7", "signature", "rsa", "verification"]
+categories = ["cryptography", "authentication"]
 
 [dependencies]
 hex = "0.4.3"

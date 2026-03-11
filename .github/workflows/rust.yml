@@ -25,10 +25,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Set up Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        override: true
+      uses: dtolnay/rust-toolchain@stable
     - name: Build
       run: cargo build --workspace --verbose
     - name: Run tests

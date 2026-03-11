@@ -1,7 +1,31 @@
 # === Rust related ===
 /target/
 **/*.rs.bk
-DS_Store
+*.profraw
+pgo-data.profdata
 
+# === WASM build output ===
+**/pkg/
 
-samples-private
+# === OS files ===
+.DS_Store
+Thumbs.db
+
+# === Secrets and private keys ===
+secrets/
+private/
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.cer
+*.secret
+*.secrets
+
+# === Environment variables ===
+.env
+*.env
+
+# === Private sample data ===
+samples-private/
