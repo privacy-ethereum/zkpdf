@@ -2,6 +2,12 @@
 version = "0.1.0"
 name = "zkpdf-program"
 edition = "2021"
+authors = ["Kushmanmb"]
+description = "SP1 zkVM program for verifying PDF signatures and text proofs"
+repository = "https://github.com/Kushmanmb/kushmanmb"
+license = "MIT"
+keywords = ["zkp", "pdf", "sp1", "zkvm", "program"]
+categories = ["cryptography", "no-std"]
 
 [dependencies]
 alloy-sol-types = { workspace = true }

@@ -19,7 +19,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-zkpdf-lib = { git = "https://github.com/privacy-ethereum/zkpdf", branch = "main", subdir = "circuits/lib" }
+zkpdf-lib = { git = "https://github.com/Kushmanmb/kushmanmb", branch = "main", subdir = "circuits/lib" }
 ```
 
 > 📚 **For complete API documentation, see [Circuit Library Documentation](lib/README.md)**

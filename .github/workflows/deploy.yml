@@ -43,11 +43,9 @@ jobs:
           cache-dependency-path: "app/yarn.lock"
 
       - name: Setup Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          target: wasm32-unknown-unknown
-          override: true
+          targets: wasm32-unknown-unknown
 
       - name: Make deploy script executable
         run: chmod +x scripts/deploy.sh

@@ -22,22 +22,52 @@ wasm.d.ts
 .env.development.local
 .env.test.local
 .env.production.local
+*.env
+
+# Secrets and private keys
+secrets/
+private/
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
+*.csr
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+*.secret
+*.secrets
+
+# ZK Proofs (generated artefacts)
+**/proof-with-pis.json
+**/proof-with-io.json
+**/*-proof.json
+**/samples-private/
 
 # IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
+*.sublime-workspace
+*.sublime-project
 
 # OS files
 .DS_Store
 Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
 
 # Logs
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+lerna-debug.log*
 
 # Runtime data
 pids
@@ -96,5 +126,15 @@ Cargo.lock
 target/
 **/*.rs.bk
 
+# Rust profile-guided optimisation
+pgo-data.profdata
+*.profraw
+
 # mdBook
 book/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
