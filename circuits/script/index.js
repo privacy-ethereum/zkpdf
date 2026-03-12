@@ -39,7 +39,7 @@ if (!proveRes.ok) {
   process.exit(1);
 }
 
-const proofData = await proveRes.toString();
+const proofData = await proveRes.json();
 console.log("✅ Proof generated:\n", proofData);
 
 console.log("\n🔎 Sending to /verify...");
