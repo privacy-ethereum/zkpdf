@@ -37,7 +37,7 @@ Add the PDF verification library to your Rust project:
 
 ```toml
 [dependencies]
-zkpdf-lib = { git = "https://github.com/privacy-ethereum/zkpdf", branch = "main", subdir = "circuits/lib" }
+zkpdf-lib = { git = "https://github.com/Kushmanmb/kushmanmb", branch = "main", subdir = "circuits/lib" }
 ```
 
 ## Quick Start
@@ -76,8 +76,8 @@ Follow these steps to run the prover API and the demo frontend.
 ### 1. Clone the Repository
 
 ```bash
-git clone git@github.com:privacy-scaling-explorations/zkpdf
-cd zkpdf
+git clone git@github.com:Kushmanmb/kushmanmb
+cd kushmanmb
 ```
 
 ### 2. Run the Prover API

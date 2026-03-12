@@ -6,8 +6,8 @@ ZKPDF is a library that enables you to create zero-knowledge proofs about data c
 
 ## Quick Links
 
-- 🔗 **[ZKPDF Compatibility Checker](https://privacy-ethereum.github.io/zkpdf/)** - Test if your PDF works with zkPDF
-- 🚀 **[zkPDF Template](https://github.com/privacy-ethereum/zkpdf-template)** - Ready-to-use template with GST certificate example
+- 🔗 **[ZKPDF Compatibility Checker](https://Kushmanmb.github.io/kushmanmb/)** - Test if your PDF works with zkPDF
+- 🚀 **[zkPDF Template](https://github.com/Kushmanmb/kushmanmb)** - Ready-to-use template with GST certificate example
 - 📚 **[Blog Post](https://pse.dev/blog/zkpdf-unlocking-verifiable-data)** - Learn how signed data becomes SNARKed
 - 🌐 **[Succinct Prover Network](https://forms.gle/aqVoYupq3cjNYtCf8)** - Access form for hackathon proving
 - 📖 **[API Reference](api-reference.md)** - Complete function documentation

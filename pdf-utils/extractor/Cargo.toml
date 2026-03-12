@@ -1,7 +1,13 @@
 [package]
 name = "extractor"
-version = "0.0.1"
+version = "0.1.0"
 edition = "2021"
+authors = ["Kushmanmb"]
+description = "PDF text extraction library for zero-knowledge proof systems"
+repository = "https://github.com/Kushmanmb/kushmanmb"
+license = "MIT"
+keywords = ["pdf", "text-extraction", "zkp", "zero-knowledge", "parser"]
+categories = ["parser-implementations", "text-processing"]
 
 [dependencies]
 miniz_oxide = "0.7"
