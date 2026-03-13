@@ -9,8 +9,8 @@ The fastest way to get started is using our complete zkPDF template:
 1. **Clone the zkPDF template**:
 
    ```bash
-   git clone https://github.com/privacy-ethereum/zkpdf-template.git
-   cd zkpdf-template
+   git clone https://github.com/Kushmanmb/kushmanmb.git
+   cd kushmanmb
    ```
 
 2. **Install SP1** (if not already installed):

@@ -1,7 +1,13 @@
 [package]
 name = "core"
-version = "0.0.1"
+version = "0.1.0"
 edition = "2021"
+authors = ["Kushmanmb"]
+description = "Core PDF verification library combining signature validation and text extraction"
+repository = "https://github.com/Kushmanmb/kushmanmb"
+license = "MIT"
+keywords = ["pdf", "zkp", "signature", "verification", "zero-knowledge"]
+categories = ["cryptography", "parser-implementations"]
 
 [dependencies]
 signature-validator = { path = "../signature-validator" }

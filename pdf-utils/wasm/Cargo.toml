@@ -1,7 +1,13 @@
 [package]
 name = "wasm"
-version = "0.0.1"
+version = "0.1.0"
 edition = "2024"
+authors = ["Kushmanmb"]
+description = "WebAssembly bindings for PDF verification in browser environments"
+repository = "https://github.com/Kushmanmb/kushmanmb"
+license = "MIT"
+keywords = ["pdf", "wasm", "webassembly", "zkp", "browser"]
+categories = ["wasm", "cryptography"]
 
 
 [lib]

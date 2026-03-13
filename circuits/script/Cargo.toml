@@ -2,6 +2,12 @@
 version = "0.1.0"
 name = "zkpdf-script"
 edition = "2021"
+authors = ["Kushmanmb"]
+description = "CLI scripts and prover API for generating SP1 zero-knowledge proofs for PDFs"
+repository = "https://github.com/Kushmanmb/kushmanmb"
+license = "MIT"
+keywords = ["zkp", "pdf", "sp1", "prover", "cli"]
+categories = ["cryptography", "command-line-utilities"]
 default-run = "zkpdf"
 
 [[bin]]
