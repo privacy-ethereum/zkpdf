@@ -1,3 +1,5 @@
+![Kushmanmb's GitHub Banner](https://raw.githubusercontent.com/Kushmanmb/Kushmanmb/main/banner.png)
+
 # Proving PDFs in ZKP
 
 This repository contains tools for verifying PDF documents within zero-knowledge proof systems.
@@ -37,7 +39,7 @@ Add the PDF verification library to your Rust project:
 
 ```toml
 [dependencies]
-zkpdf-lib = { git = "https://github.com/privacy-ethereum/zkpdf", branch = "main", subdir = "circuits/lib" }
+zkpdf-lib = { git = "https://github.com/Kushmanmb/kushmanmb", branch = "main", subdir = "circuits/lib" }
 ```
 
 ## Quick Start
@@ -76,8 +78,8 @@ Follow these steps to run the prover API and the demo frontend.
 ### 1. Clone the Repository
 
 ```bash
-git clone git@github.com:privacy-scaling-explorations/zkpdf
-cd zkpdf
+git clone git@github.com:Kushmanmb/kushmanmb
+cd kushmanmb
 ```
 
 ### 2. Run the Prover API
@@ -117,7 +119,7 @@ yarn dev
 
 Visit [http://localhost:3000](http://localhost:3000) to view the interface.
 
-https://github.com/user-attachments/assets/2c369a52-1d2c-4487-b47d-bcb7e6ff2fec
+https://github.com/user-attachments/assets/
 
 ## Use Cases
 
