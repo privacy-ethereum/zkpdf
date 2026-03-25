@@ -2,13 +2,12 @@ use num_bigint::BigUint;
 use num_traits::FromPrimitive;
 use sha1::Sha1;
 use sha2::{Digest, Sha256, Sha384, Sha512};
-use simple_asn1::{from_der, oid, ASN1Block, ASN1Class};
+use simple_asn1::{from_der, oid, ASN1Block, ASN1Class, OID};
 
-use crate::types::{Pkcs7Error, Pkcs7Result, SignatureAlgorithm};
+use crate::types::{Pkcs7Error, Pkcs7Result, PublicKeyType, SignatureAlgorithm};
 
 pub struct VerifierParams {
-    pub modulus: Vec<u8>,
-    pub exponent: BigUint,
+    pub public_key: PublicKeyType,
     pub signature: Vec<u8>,
     pub signed_attr_digest: Option<Vec<u8>>,
     pub algorithm: SignatureAlgorithm,
@@ -22,12 +21,10 @@ pub fn parse_signed_data(der_bytes: &[u8]) -> Pkcs7Result<VerifierParams> {
     let signed_children = extract_signed_children(content_info)?;
     let signature_data = get_signature_data(signed_children.clone())?;
 
-    let (modulus_bytes, exponent_big) =
-        extract_pubkey_components(&signed_children, &signature_data.signer_serial)?;
+    let public_key = extract_public_key(&signed_children, &signature_data.signer_serial)?;
 
     Ok(VerifierParams {
-        modulus: modulus_bytes,
-        exponent: exponent_big,
+        public_key,
         signature: signature_data.signature,
         signed_attr_digest: signature_data.digest_bytes,
         algorithm: signature_data.signed_algo,
@@ -62,22 +59,25 @@ fn get_signature_data(signed_data_seq: Vec<ASN1Block>) -> Pkcs7Result<SignatureD
                 .ok_or_else(|| Pkcs7Error::structure("Signed content digest missing"))?;
             let algo = digest_algorithm_from_oid(&digest_oid)?;
             let signed_digest = match algo {
-                SignatureAlgorithm::Sha1WithRsaEncryption => {
+                SignatureAlgorithm::Sha1WithRsaEncryption | SignatureAlgorithm::EcdsaWithSha1 => {
                     let mut hasher = Sha1::new();
                     hasher.update(&digest);
                     hasher.finalize().to_vec()
                 }
-                SignatureAlgorithm::Sha256WithRsaEncryption => {
+                SignatureAlgorithm::Sha256WithRsaEncryption
+                | SignatureAlgorithm::EcdsaWithSha256 => {
                     let mut hasher = Sha256::new();
                     hasher.update(&digest);
                     hasher.finalize().to_vec()
                 }
-                SignatureAlgorithm::Sha384WithRsaEncryption => {
+                SignatureAlgorithm::Sha384WithRsaEncryption
+                | SignatureAlgorithm::EcdsaWithSha384 => {
                     let mut hasher = Sha384::new();
                     hasher.update(&digest);
                     hasher.finalize().to_vec()
                 }
-                SignatureAlgorithm::Sha512WithRsaEncryption => {
+                SignatureAlgorithm::Sha512WithRsaEncryption
+                | SignatureAlgorithm::EcdsaWithSha512 => {
                     let mut hasher = Sha512::new();
                     hasher.update(&digest);
                     hasher.finalize().to_vec()
@@ -187,22 +187,22 @@ fn compute_signed_attributes_digest(
 ) -> Pkcs7Result<(Vec<u8>, SignatureAlgorithm)> {
     let algorithm = digest_algorithm_from_oid(digest_oid)?;
     let digest = match algorithm {
-        SignatureAlgorithm::Sha1WithRsaEncryption => {
+        SignatureAlgorithm::Sha1WithRsaEncryption | SignatureAlgorithm::EcdsaWithSha1 => {
             let mut hasher = Sha1::new();
             hasher.update(signed_attrs_der);
             hasher.finalize().to_vec()
         }
-        SignatureAlgorithm::Sha256WithRsaEncryption => {
+        SignatureAlgorithm::Sha256WithRsaEncryption | SignatureAlgorithm::EcdsaWithSha256 => {
             let mut hasher = Sha256::new();
             hasher.update(signed_attrs_der);
             hasher.finalize().to_vec()
         }
-        SignatureAlgorithm::Sha384WithRsaEncryption => {
+        SignatureAlgorithm::Sha384WithRsaEncryption | SignatureAlgorithm::EcdsaWithSha384 => {
             let mut hasher = Sha384::new();
             hasher.update(signed_attrs_der);
             hasher.finalize().to_vec()
         }
-        SignatureAlgorithm::Sha512WithRsaEncryption => {
+        SignatureAlgorithm::Sha512WithRsaEncryption | SignatureAlgorithm::EcdsaWithSha512 => {
             let mut hasher = Sha512::new();
             hasher.update(signed_attrs_der);
             hasher.finalize().to_vec()
@@ -225,6 +225,7 @@ fn extract_signature(signer_info: &Vec<ASN1Block>, has_signed_attrs: bool) -> Pk
 }
 
 fn digest_algorithm_from_oid(digest_oid: &simple_asn1::OID) -> Pkcs7Result<SignatureAlgorithm> {
+    // RSA algorithms
     if digest_oid == &oid!(1, 3, 14, 3, 2, 26) {
         Ok(SignatureAlgorithm::Sha1WithRsaEncryption)
     } else if digest_oid == &oid!(2, 16, 840, 1, 101, 3, 4, 2, 1) {
@@ -233,6 +234,18 @@ fn digest_algorithm_from_oid(digest_oid: &simple_asn1::OID) -> Pkcs7Result<Signa
         Ok(SignatureAlgorithm::Sha384WithRsaEncryption)
     } else if digest_oid == &oid!(2, 16, 840, 1, 101, 3, 4, 2, 3) {
         Ok(SignatureAlgorithm::Sha512WithRsaEncryption)
+    }
+    // ECDSA algorithms - note: these map to digest algorithms, actual signature algorithm comes from certificate
+    else if digest_oid == &oid!(1, 2, 840, 10045, 4, 1) {
+        Ok(SignatureAlgorithm::EcdsaWithSha1)
+    } else if digest_oid == &oid!(1, 2, 840, 10045, 4, 3, 1) {
+        Ok(SignatureAlgorithm::EcdsaWithSha224)
+    } else if digest_oid == &oid!(1, 2, 840, 10045, 4, 3, 2) {
+        Ok(SignatureAlgorithm::EcdsaWithSha256)
+    } else if digest_oid == &oid!(1, 2, 840, 10045, 4, 3, 3) {
+        Ok(SignatureAlgorithm::EcdsaWithSha384)
+    } else if digest_oid == &oid!(1, 2, 840, 10045, 4, 3, 4) {
+        Ok(SignatureAlgorithm::EcdsaWithSha512)
     } else {
         Err(Pkcs7Error::UnsupportedDigestOid(digest_oid.clone()))
     }
@@ -315,19 +328,83 @@ pub fn extract_signed_children(children: &[ASN1Block]) -> Pkcs7Result<Vec<ASN1Bl
     }
 }
 
-pub fn extract_pubkey_components(
+/// Extract public key (either RSA or ECDSA)
+pub fn extract_public_key(
     signed_data_seq: &Vec<ASN1Block>,
     signed_serial_number: &BigUint,
-) -> Pkcs7Result<(Vec<u8>, BigUint)> {
+) -> Pkcs7Result<PublicKeyType> {
     let certificates = find_certificates(signed_data_seq)?;
     let tbs_fields = get_correct_tbs(&certificates, signed_serial_number)?;
     let spki_fields = find_subject_public_key_info(&tbs_fields)?;
+
+    // Check the algorithm OID in subjectPublicKeyInfo
+    let algo_oid = extract_algorithm_oid(spki_fields)?;
+
+    if is_rsa_oid(&algo_oid) {
+        // RSA public key
+        let (modulus, exponent) = extract_rsa_components(spki_fields)?;
+        Ok(PublicKeyType::Rsa { modulus, exponent })
+    } else if is_ec_oid(&algo_oid) {
+        // ECDSA public key
+        let (curve_oid, public_key_point) = extract_ecdsa_components(spki_fields)?;
+        Ok(PublicKeyType::Ecdsa {
+            curve_oid,
+            public_key_point,
+        })
+    } else {
+        Err(Pkcs7Error::structure(format!(
+            "Unsupported public key algorithm: {:?}",
+            algo_oid
+        )))
+    }
+}
+
+fn extract_algorithm_oid(spki_fields: &Vec<ASN1Block>) -> Pkcs7Result<OID> {
+    if let ASN1Block::Sequence(_, alg_items) = &spki_fields[0] {
+        if let Some(ASN1Block::ObjectIdentifier(_, oid)) = alg_items.get(0) {
+            Ok(oid.clone())
+        } else {
+            Err(Pkcs7Error::structure("Algorithm OID not found in SPKI"))
+        }
+    } else {
+        Err(Pkcs7Error::structure(
+            "Algorithm sequence not found in SPKI",
+        ))
+    }
+}
+
+fn is_rsa_oid(oid: &OID) -> bool {
+    *oid == oid!(1, 2, 840, 113549, 1, 1, 1) // rsaEncryption
+}
+
+fn is_ec_oid(oid: &OID) -> bool {
+    *oid == oid!(1, 2, 840, 10045, 2, 1) // ecPublicKey
+}
+
+fn extract_rsa_components(spki_fields: &Vec<ASN1Block>) -> Pkcs7Result<(Vec<u8>, BigUint)> {
     let public_key_bitstring = extract_public_key_bitstring(spki_fields)?;
     let rsa_sequence = parse_rsa_public_key(&public_key_bitstring)?;
     let modulus = extract_modulus(&rsa_sequence)?;
     let exponent = extract_exponent(&rsa_sequence)?;
-
     Ok((modulus, exponent))
+}
+
+fn extract_ecdsa_components(spki_fields: &Vec<ASN1Block>) -> Pkcs7Result<(OID, Vec<u8>)> {
+    // Extract curve OID from algorithm parameters
+    let curve_oid = if let ASN1Block::Sequence(_, alg_items) = &spki_fields[0] {
+        if let Some(ASN1Block::ObjectIdentifier(_, oid)) = alg_items.get(1) {
+            oid.clone()
+        } else {
+            return Err(Pkcs7Error::structure("EC curve OID not found"));
+        }
+    } else {
+        return Err(Pkcs7Error::structure("Algorithm sequence malformed"));
+    };
+
+    // Extract public key point from BIT STRING
+    let public_key_point = extract_public_key_bitstring(spki_fields)?;
+
+    Ok((curve_oid, public_key_point))
 }
 
 fn find_certificates(signed_data_seq: &Vec<ASN1Block>) -> Pkcs7Result<Vec<ASN1Block>> {
@@ -425,7 +502,11 @@ fn find_subject_public_key_info(tbs_fields: &Vec<ASN1Block>) -> Pkcs7Result<&Vec
             if let ASN1Block::Sequence(_, sf) = b {
                 if let ASN1Block::Sequence(_, alg) = &sf[0] {
                     if let Some(ASN1Block::ObjectIdentifier(_, o)) = alg.get(0) {
-                        if *o == oid!(1, 2, 840, 113549, 1, 1, 1) {
+                        // Accept both RSA and EC public keys
+                        if *o == oid!(1, 2, 840, 113549, 1, 1, 1) // RSA
+                            || *o == oid!(1, 2, 840, 10045, 2, 1)
+                        // EC
+                        {
                             return Some(sf);
                         }
                     }
